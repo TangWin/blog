@@ -1,0 +1,17 @@
+---
+import PageLayout from '@/components/layouts/PageLayout.astro';
+---
+
+<PageLayout title="404" lang="en">
+  <div class="flex h-[70vh] flex-col items-center justify-center text-center">
+    <p class="text-[120px] font-bold leading-none text-slate4 select-none">404</p>
+    <p class="mt-2 text-[15px] text-slate9">This page could not be found.</p>
+    <a
+      href="/"
+      class="mt-8 inline-flex items-center gap-1.5 text-sm text-slate9 transition-colors hover:text-slate12"
+    >
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
+      Back to home
+    </a>
+  </div>
+</PageLayout>

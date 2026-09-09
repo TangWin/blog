@@ -1,0 +1,108 @@
+---
+import { setLang } from '@/i18n';
+import i18next from '@/i18n';
+import PageLayout from '@/components/layouts/PageLayout.astro';
+import { getPosts, localePath } from '@/helpers/i18n-utils';
+
+const lang = 'zh';
+setLang(lang);
+
+export async function getStaticPaths() {
+  const { getPosts } = await import('@/helpers/i18n-utils');
+  const { setLang } = await import('@/i18n');
+  setLang('zh');
+  const posts = await getPosts('zh');
+
+  const allTags = new Set<string>();
+  posts.forEach((post) => {
+    if (post.data.tags) {
+      post.data.tags.forEach((tag) => {
+        if (tag.trim() !== '') allTags.add(tag);
+      });
+    }
+  });
+
+  return Array.from(allTags).map((tag) => ({
+    params: { tag },
+    props: { tag },
+  }));
+}
+
+const { tag } = Astro.props;
+const posts = await getPosts(lang);
+const filteredPosts = posts
+  .filter((post) => post.data.tags?.includes(tag))
+  .map((post) => ({
+    id: post.id,
+    url: localePath(`/blog/${post.id}`, lang),
+    data: post.data,
+  }));
+
+const allTags = new Set<string>();
+posts.forEach((post) => {
+  if (post.data.tags) {
+    post.data.tags.forEach((t) => {
+      if (t.trim() !== '') allTags.add(t);
+    });
+  }
+});
+const tagList = Array.from(allTags).sort();
+---
+
+<PageLayout title={i18next.t('tags.tagLabel', { tag })} description={i18next.t('tags.tagLabel', { tag })} lang={lang}>
+  <div slot="header">
+    <a href="/zh/" class="inline-flex items-center gap-1.5 text-sm text-slate9 transition-colors hover:text-slate12 cursor-pointer mb-10">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
+      {i18next.t('nav.back')}
+    </a>
+  </div>
+
+  <section class="mb-12">
+    <h1 class="text-2xl font-semibold leading-tight text-slate12 mb-2">
+      {i18next.t('tags.tagLabel', { tag })}
+    </h1>
+    <p class="text-sm text-slate9 mb-8">
+      {i18next.t('tags.foundPosts', { count: filteredPosts.length })}
+    </p>
+    
+    <div class="text-[15px]">
+      {
+        filteredPosts.map((item) => (
+          <a 
+            class="group relative flex cursor-pointer flex-col justify-between border-l-2 border-transparent py-3 pl-4 transition-all duration-200 hover:border-slate12 hover:bg-slate2 sm:flex-row sm:items-center sm:pr-3" 
+            href={item.url} 
+            title={item.data.title}
+          >
+            <span class="min-w-0 shrink truncate text-slate11 transition-colors group-hover:text-slate12">{item.data.title}</span>
+            <span class="mx-4 hidden h-px shrink grow basis-4 border-t border-dashed border-slate5 opacity-40 sm:flex" />
+            <span class="shrink-0 text-[13px] text-slate8 tabular-nums">
+              {item.data.pubDate ? `${String(item.data.pubDate.getDate()).padStart(2,'0')}/${String(item.data.pubDate.getMonth()+1).padStart(2,'0')}/${item.data.pubDate.getFullYear()}` : ''}
+            </span>
+          </a>
+        ))
+      }
+    </div>
+  </section>
+
+  <section class="mb-16">
+    <h3 class="text-sm font-medium text-slate9 mb-3">{i18next.t('tags.allTags')}</h3>
+    <ul class="flex flex-wrap gap-1.5">
+      {
+        tagList.map((tagName) => (
+          <li>
+            <a 
+              href={localePath(`/tags/${tagName}`, lang)}
+              class={`block cursor-pointer rounded-full px-3 py-1 text-sm transition-colors ${
+                tagName === tag 
+                  ? 'bg-slate12 text-slate1 font-medium' 
+                  : 'bg-slate3 text-slate9 hover:bg-slate4 hover:text-slate11'
+              }`}
+            >
+              {tagName}
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+  </section>
+</PageLayout>

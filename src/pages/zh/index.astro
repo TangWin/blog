@@ -1,0 +1,99 @@
+---
+import i18next from '@/i18n';
+import { setLang } from '@/i18n';
+import Search from '@/components/search';
+import PageLayout from '@/components/layouts/PageLayout.astro';
+import siteConfig from '~@/site.config';
+import { getPosts, localePath } from '@/helpers/i18n-utils';
+import type { SupportedLang } from '@/helpers/i18n-utils';
+
+const lang: SupportedLang = 'zh';
+setLang(lang);
+
+const posts = await getPosts(lang);
+
+const tagCounts = posts.reduce<Record<string, number>>(
+  (res, post) => {
+    const postTags = post.data.tags;
+    if (!postTags || !postTags.length) return res;
+    postTags.forEach((tag) => {
+      if (tag.trim() === '') return;
+      if (res[tag]) {
+        res[tag]++;
+      } else {
+        res[tag] = 1;
+      }
+    });
+    return res;
+  },
+  {
+    [i18next.t('common.all')]: posts.length,
+  },
+);
+
+const tags = Object.keys(tagCounts).map((tag) => ({
+  name: tag,
+  count: tagCounts[tag],
+}));
+
+const postList = posts.map((post) => ({
+  id: post.id,
+  url: localePath(`/blog/${post.id}`, lang),
+  data: post.data,
+}));
+---
+
+<PageLayout lang={lang}>
+  <section class="mb-10">
+    <div class="flex items-start justify-between">
+      <div>
+        <h3 class="text-2xl font-semibold leading-tight text-slate12">
+          {siteConfig.title}
+        </h3>
+        <p class="mt-1 text-[15px] text-slate9">{siteConfig.description}</p>
+      </div>
+      <Search
+        client:only="react"
+        className="mt-0.5"
+      />
+    </div>
+  </section>
+
+  <section class="mb-14">
+    <div class="text-[15px]">
+      {
+        postList.map((item) => (
+          <a
+            class="group relative flex cursor-pointer flex-col justify-between border-l-2 border-transparent py-3 pl-4 transition-all duration-200 hover:border-slate12 hover:bg-slate2 sm:flex-row sm:items-center sm:pr-3"
+            href={item.url}
+            title={item.data.title}
+          >
+            <span class="min-w-0 shrink truncate text-slate11 transition-colors group-hover:text-slate12">{item.data.title}</span>
+            <span class="mx-4 hidden h-px shrink grow basis-4 border-t border-dashed border-slate5 opacity-40 sm:flex" />
+            <span class="shrink-0 text-[13px] text-slate8 tabular-nums">
+              {item.data.pubDate ? `${String(item.data.pubDate.getDate()).padStart(2,'0')}/${String(item.data.pubDate.getMonth()+1).padStart(2,'0')}/${item.data.pubDate.getFullYear()}` : ''}
+            </span>
+          </a>
+        ))
+      }
+    </div>
+  </section>
+
+  <section class="mb-12">
+    <ul class="flex flex-wrap gap-1.5 text-sm">
+      {
+        tags.map(({ name, count }) => (
+          <li>
+            <a 
+              href={name === i18next.t('common.all') ? localePath('/', lang) : localePath(`/tags/${name}`, lang)}
+              class="block cursor-pointer rounded-full bg-slate3 px-3 py-1.5 text-slate9 transition-colors hover:bg-slate4 hover:text-slate11"
+            >
+              {name}
+              <sup class="text-[10px] text-slate8">{count}</sup>
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+  </section>
+</PageLayout>

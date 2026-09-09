@@ -1,0 +1,34 @@
+---
+import siteConfig from '~@/site.config';
+import i18next from '@/i18n';
+import { setLang } from '@/i18n';
+import { localePath } from '@/helpers/i18n-utils';
+import type { SupportedLang } from '@/helpers/i18n-utils';
+
+interface Props {
+  avatar?: string;
+  lang?: SupportedLang;
+}
+
+const { avatar = siteConfig.avatar, lang = 'en' } = Astro.props;
+setLang(lang);
+---
+
+<header>
+  <div class="mb-10 flex items-center justify-between">
+    <a href={localePath('/', lang)} class="group flex items-center gap-3">
+      <img
+        class="h-9 w-9 rounded-full bg-slate2 shadow-sm ring-1 ring-slate4 transition-shadow group-hover:ring-slate6"
+        src={avatar}
+        alt={siteConfig.title}
+        draggable="false"
+      />
+      <span class="sr-only">{siteConfig.title}</span>
+    </a>
+    <nav class="flex items-center gap-5">
+      <a href={localePath('/about', lang)} class="text-[13px] text-slate9 transition-colors hover:text-slate12">
+        {i18next.t('nav.about')}
+      </a>
+    </nav>
+  </div>
+</header>

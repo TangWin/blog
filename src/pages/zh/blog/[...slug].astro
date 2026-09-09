@@ -1,0 +1,162 @@
+---
+import dayjs from 'dayjs';
+import { getCollection, render } from 'astro:content';
+import i18next from '@/i18n';
+import { setLang } from '@/i18n';
+import PageLayout from '@/components/layouts/PageLayout.astro';
+import ArticleJsonLd from '@/components/json-ld/article.astro';
+import AffixTitle from '@/components/affix-title';
+import Toc from '@/components/toc';
+import CodeGroupEvent from '@/components/code-group-event';
+import ImageLightbox from '@/components/ImageLightbox';
+import siteConfig from '~@/site.config';
+import { getFullTitle } from '@/helpers/utils';
+import { localePath } from '@/helpers/i18n-utils';
+import Giscus from '@/components/comments/Giscus';
+import 'remark-block-containers/css';
+import '@/assets/style/blog.css';
+
+const lang = 'zh';
+setLang(lang);
+
+export async function getStaticPaths() {
+  const postEntries = await getCollection('post-zh', ({ data }) => {
+    return import.meta.env.DEV || data.draft !== true;
+  });
+
+  return postEntries.map((post) => ({
+    params: { slug: post.id },
+    props: post,
+  }));
+}
+
+const post = Astro.props;
+const { Content, remarkPluginFrontmatter, headings } = await render(post);
+const lastModifiedDate = dayjs(
+  remarkPluginFrontmatter.lastModified
+    ? remarkPluginFrontmatter.lastModified
+    : undefined,
+);
+const lastModified = lastModifiedDate.format('DD/MM/YYYY');
+const pubDate = dayjs(post.data.pubDate);
+const formattedPubDate = pubDate.format('DD/MM/YYYY');
+---
+
+<PageLayout 
+  title={post.data.title} 
+  description={post.data.description || siteConfig.description}
+  contentWidth={post.data.contentWidth}
+  lang={lang}
+>
+  <ArticleJsonLd
+    slot="json-ld"
+    title={getFullTitle(post.data.title)}
+    description={post.data.description || siteConfig.description}
+    pubDate={post.data.pubDate!}
+    lastModified={lastModifiedDate.toDate()}
+  />
+  <CodeGroupEvent client:only="react" />
+  <AffixTitle title={post.data.title} offsetTop={100} homePath="/zh/" client:idle />
+
+  <div slot="header">
+    <a id="back" href="/zh/" class="inline-flex items-center gap-1.5 text-sm text-slate9 transition-colors hover:text-slate12 cursor-pointer mb-12">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
+      {i18next.t('nav.back') || '返回'}
+    </a>
+  </div>
+
+  <div class="blog-content">
+    <div class="mb-12">
+      <h1 class="!mb-4">{post.data.title}</h1>
+      <div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-slate9 tabular-nums">
+        <time>{formattedPubDate}</time>
+        {!!siteConfig.readTime && <span class="text-slate6">·</span>}
+        {
+          siteConfig.readTime && (
+            <span>
+              {i18next.t('blog.readingTime', {
+                minutes: remarkPluginFrontmatter.minutesRead,
+              })}
+            </span>
+          )
+        }
+        {
+          post.data.tags && post.data.tags.length > 0 && (
+            <>
+              <span class="text-slate6">·</span>
+              {
+                post.data.tags.map((tag) => (
+                  <a 
+                    href={localePath(`/tags/${tag}`, lang)}
+                    class="text-slate9 transition-colors hover:text-slate12"
+                  >
+                    #{tag}
+                  </a>
+                ))
+              }
+            </>
+          )
+        }
+      </div>
+    </div>
+    <ImageLightbox client:only="react">
+      <Content />
+    </ImageLightbox>
+    {
+      siteConfig.lastModified && (
+        <div class="mt-12 border-t border-slate4 pt-4 text-sm text-slate9">
+          {i18next.t('blog.lastModified')} {lastModified}
+        </div>
+      )
+    }
+    {
+      siteConfig.giscus && (
+        <Giscus 
+          client:only="react"
+          config={{
+            repo: siteConfig.giscus.repo,
+            repoId: siteConfig.giscus.repoId,
+            category: siteConfig.giscus.category,
+            categoryId: siteConfig.giscus.categoryId,
+            mapping: siteConfig.giscus.mapping || 'pathname',
+            strict: siteConfig.giscus.strict,
+            reactionsEnabled: siteConfig.giscus.reactionsEnabled,
+            inputPosition: siteConfig.giscus.inputPosition || 'bottom',
+            lang: 'zh-CN',
+          }}
+          theme={siteConfig.theme?.mode === 'auto' ? 'auto' : siteConfig.theme?.mode}
+        />
+      )
+    }
+  </div>
+  <Toc
+    className="fixed top-0 right-0 bottom-0 hidden w-64 xl:block"
+    listClassName="px-5 pt-44 pb-14 "
+    dataSource={headings}
+    client:visible
+  />
+</PageLayout>
+
+<script src="//unpkg.com/heti/umd/heti-addon.min.js" is:inline></script>
+<script>
+  import mermaid from 'mermaid';
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'neutral',
+    look: 'handDrawn',
+    securityLevel: 'loose',
+    fontFamily: 'monospace',
+    fontSize: 14,
+    flowchart: {
+      useMaxWidth: true,
+      htmlLabels: true,
+    },
+  });
+
+  document.addEventListener('DOMContentLoaded', () => {
+    mermaid.run();
+  });
+
+  const heti = new Heti('.blog-content');
+  heti.autoSpacing();
+</script>

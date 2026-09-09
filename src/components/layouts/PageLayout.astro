@@ -1,0 +1,99 @@
+---
+import HeadMeta from './HeadMeta.astro';
+import Header from './Header.astro';
+import Footer from './Footer.astro';
+import NormalJsonLd from '@/components/json-ld/normal.astro';
+import siteConfig from '~@/site.config';
+import { getFullTitle } from '@/helpers/utils';
+import { getHtmlLang } from '@/helpers/i18n-utils';
+import type { SupportedLang } from '@/helpers/i18n-utils';
+import '@/assets/style/common.css';
+
+interface Props {
+  title?: string;
+  description?: string;
+  image?: string;
+  contentWidth?: 'narrow' | 'medium' | 'wide' | 'full';
+  lang?: SupportedLang;
+}
+
+const {
+  title = '',
+  description = siteConfig.description,
+  image = '/og_image.png',
+  contentWidth: articleContentWidth,
+  lang = 'en',
+} = Astro.props;
+const fullTitle = getFullTitle(title);
+const htmlLang = getHtmlLang(lang);
+
+const contentWidth = articleContentWidth || siteConfig.contentWidth?.type || 'medium';
+const getContainerClass = (width: string) => {
+  switch (width) {
+    case 'narrow':
+      return 'max-w-narrow';
+    case 'medium':
+      return 'max-w-180';
+    case 'wide':
+      return 'max-w-wide';
+    case 'full':
+      return 'max-w-full';
+    default:
+      return 'max-w-180';
+  }
+};
+
+const themeScript = `
+  function getThemeMode() {
+    const theme = localStorage.getItem('theme');
+    if (theme && (theme === 'light' || theme === 'dark')) return theme;
+
+    const presetTheme = theme === 'auto' ? theme : '${siteConfig.theme?.mode}';
+    if (presetTheme === 'auto')
+      return window.matchMedia('(prefers-color-scheme: dark)').matches
+        ? 'dark'
+        : 'light';
+
+    return presetTheme;
+  }
+  const mode = getThemeMode();
+  document.documentElement.className = mode;
+  document.documentElement.dataset.theme = mode;
+`;
+
+const langDetectScript = `
+  (function() {
+    if (sessionStorage.getItem('lang-detected')) return;
+    sessionStorage.setItem('lang-detected', '1');
+    var path = window.location.pathname;
+    if (path.startsWith('/zh')) return;
+    var lang = navigator.language || navigator.userLanguage || '';
+    if (lang.startsWith('zh') && !path.startsWith('/zh')) {
+      window.location.replace('/zh' + path);
+    }
+  })();
+`;
+---
+
+<!doctype html>
+<html lang={htmlLang}>
+  <head>
+    <HeadMeta title={fullTitle} description={description} image={image} lang={lang} />
+    <slot name="json-ld">
+      <NormalJsonLd title={fullTitle} description={description} image={image} />
+    </slot>
+    <script set:html={themeScript} is:inline></script>
+    <script set:html={langDetectScript} is:inline></script>
+  </head>
+  <body class="bg-slate1">
+    <div class={`m-auto flex min-h-dvh ${getContainerClass(contentWidth)} flex-col px-6 pb-6 pt-18 animate-fade-in`}>
+      <slot name="header">
+        <Header lang={lang} />
+      </slot>
+      <slot />
+      <slot name="footer">
+        <Footer lang={lang} />
+      </slot>
+    </div>
+  </body>
+</html>

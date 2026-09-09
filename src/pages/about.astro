@@ -1,0 +1,33 @@
+---
+import { getEntry, render } from 'astro:content';
+import PageLayout from '@/components/layouts/PageLayout.astro';
+import '@/assets/style/blog.css';
+
+const about = await getEntry('pages', 'about-en');
+let Content = null;
+if (about) {
+  Content = (await render(about)).Content;
+}
+---
+
+<PageLayout title={about?.data.title ?? 'About'} description={about?.data.description ?? ''} lang="en">
+  <div slot="header">
+    <a href="/" class="inline-flex items-center gap-1.5 text-sm text-slate9 transition-colors hover:text-slate12 cursor-pointer mb-12">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
+      Back
+    </a>
+  </div>
+
+  <div class="blog-content">
+    <div class="mb-12">
+      <h1>{about?.data.title ?? 'About'}</h1>
+    </div>
+    {Content ? <Content /> : <p>About page not found.</p>}
+  </div>
+</PageLayout>
+
+<script src="//unpkg.com/heti/umd/heti-addon.min.js" is:inline></script>
+<script>
+  const heti = new Heti('.blog-content');
+  heti.autoSpacing();
+</script>

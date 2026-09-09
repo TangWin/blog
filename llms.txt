@@ -1,0 +1,34 @@
+# Ink Blog
+
+> Minimalist bilingual blog template built with Astro 6, React 19, and Tailwind CSS 4.
+
+Ink Blog is an open-source static blog starter with English/Chinese i18n, dark mode, Pagefind full-text search, Mermaid diagrams, KaTeX math, Giscus comments, RSS feeds, JSON-LD structured data, sitemap, and SEO-ready meta tags. Deploy to Vercel, Netlify, or any static host with zero backend.
+
+## Documentation
+
+- [README](https://github.com/OldJii/ink-blog/blob/main/README.md): Quick start, configuration, content authoring
+- [site.config.ts](https://github.com/OldJii/ink-blog/blob/main/site.config.ts): Site title, URL, theme, Giscus, social links
+
+## Features
+
+- Bilingual (en/zh) with automatic language detection
+- Dark mode with user preference persistence
+- Pagefind static search, Mermaid, KaTeX, Giscus, RSS per language
+- JSON-LD, sitemap, robots.txt, Open Graph, Twitter cards
+- Reading time, table of contents, image lightbox
+
+## Quick start
+
+```bash
+git clone https://github.com/OldJii/ink-blog.git my-blog
+cd my-blog && npm install && npm run dev
+```
+
+Edit `site.config.ts` then add Markdown to `src/content/post/en/` and `src/content/post/zh/`.
+
+## Common questions
+
+- **Stack**: Astro 6, React 19, Tailwind CSS 4, TypeScript
+- **Deploy**: Vercel recommended; outputs static `dist/`
+- **Comments**: Optional Giscus via `site.config.ts`
+- **License**: MIT

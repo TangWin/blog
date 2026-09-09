@@ -1,0 +1,57 @@
+@reference '../../assets/style/common.css';
+
+.search-trigger {
+  @apply flex items-center gap-2 h-8 px-2 rounded-lg text-slate9 transition-colors duration-150 cursor-pointer;
+  border: none;
+  outline: none;
+  background: none;
+}
+
+.search-trigger:hover {
+  @apply text-slate12 bg-slate3;
+}
+
+.search-shortcut {
+  @apply hidden sm:flex items-center gap-0.5;
+}
+
+.search-shortcut kbd {
+  @apply inline-flex items-center justify-center h-[18px] min-w-[18px] px-0.5 rounded text-[10px] text-slate8 border border-slate6;
+  font-family: inherit;
+}
+
+.search-dialog {
+  @apply fixed inset-0 w-full max-w-full h-full max-h-full m-0 p-0 border-none bg-transparent;
+  z-index: 999;
+}
+
+.search-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+}
+
+.search-dialog-content {
+  @apply mx-auto mt-[12vh] max-w-xl rounded-2xl bg-slate1 p-5 shadow-2xl border border-slate4;
+  max-height: 65vh;
+  overflow-y: auto;
+}
+
+.pagefind-ui__search-input {
+  @apply w-full h-10 px-4 rounded-lg bg-slate2 text-slate12 border border-slate5 outline-none text-[15px];
+}
+
+.pagefind-ui__search-input:focus {
+  @apply border-slate8 ring-1 ring-slate8;
+}
+
+.pagefind-ui__result-link {
+  @apply text-slate12 no-underline hover:underline;
+}
+
+.pagefind-ui__result-excerpt {
+  @apply text-slate10 text-sm;
+}
+
+mark.pagefind-ui__result-highlight {
+  @apply bg-amber-200 text-slate12 rounded px-0.5;
+}

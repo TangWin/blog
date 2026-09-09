@@ -1,0 +1,69 @@
+---
+import { setLang } from '@/i18n';
+import i18next from '@/i18n';
+import PageLayout from '@/components/layouts/PageLayout.astro';
+import { getPosts, localePath } from '@/helpers/i18n-utils';
+
+const lang = 'zh';
+setLang(lang);
+
+const posts = await getPosts(lang);
+
+const tagCounts = posts.reduce<Record<string, number>>(
+  (res, post) => {
+    const postTags = post.data.tags;
+    if (!postTags || !postTags.length) return res;
+    postTags.forEach((tag) => {
+      if (tag.trim() === '') return;
+      if (res[tag]) {
+        res[tag]++;
+      } else {
+        res[tag] = 1;
+      }
+    });
+    return res;
+  },
+  {},
+);
+
+const tags = Object.keys(tagCounts)
+  .map((tag) => ({
+    name: tag,
+    count: tagCounts[tag],
+  }))
+  .sort((a, b) => b.count - a.count);
+---
+
+<PageLayout title={i18next.t('tags.title')} description={i18next.t('tags.title')} lang={lang}>
+  <div slot="header">
+    <a href="/zh/" class="inline-flex items-center gap-1.5 text-sm text-slate9 transition-colors hover:text-slate12 cursor-pointer mb-10">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
+      {i18next.t('nav.back')}
+    </a>
+  </div>
+
+  <section class="mb-10">
+    <h1 class="text-2xl font-semibold leading-tight text-slate12 mb-2">
+      {i18next.t('tags.title')}
+    </h1>
+    <p class="text-sm text-slate9">
+      {i18next.t('tags.count', { count: tags.length })}
+    </p>
+  </section>
+
+  <section class="mb-16">
+    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {
+        tags.map(({ name, count }) => (
+          <a 
+            href={localePath(`/tags/${name}`, lang)}
+            class="flex items-center justify-between rounded-lg border border-slate4 px-4 py-3 transition-colors hover:border-slate6 hover:bg-slate3"
+          >
+            <span class="text-[15px] font-medium text-slate12">{name}</span>
+            <span class="text-xs text-slate9 tabular-nums">{count}</span>
+          </a>
+        ))
+      }
+    </div>
+  </section>
+</PageLayout>

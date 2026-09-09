@@ -1,0 +1,50 @@
+---
+import type { ImageMetadata } from 'astro';
+import siteConfig from '~@/site.config';
+
+interface Props {
+  title: string;
+  description: string;
+  pubDate: Date;
+  lastModified?: Date;
+  image?: string | ImageMetadata;
+}
+
+const {
+  title,
+  description,
+  pubDate,
+  lastModified = pubDate,
+  image = '/og_image.png',
+} = Astro.props;
+
+const imageUrl = typeof image === 'string' ? image : image.src;
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Article',
+  headline: title,
+  description: description,
+  image: new URL(imageUrl, siteConfig.site).href,
+  datePublished: pubDate.toISOString(),
+  dateModified: lastModified.toISOString(),
+  author: {
+    '@type': 'Person',
+    name: siteConfig.title,
+  },
+  publisher: {
+    '@type': 'Organization',
+    name: siteConfig.title,
+    logo: {
+      '@type': 'ImageObject',
+      url: new URL(siteConfig.avatar || '/avatar.png', siteConfig.site).href,
+    },
+  },
+  mainEntityOfPage: {
+    '@type': 'WebPage',
+    '@id': Astro.url.href,
+  },
+};
+---
+
+<script type="application/ld+json" set:html={JSON.stringify(jsonLd)} is:inline />

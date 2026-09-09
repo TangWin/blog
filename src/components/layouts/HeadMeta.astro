@@ -1,0 +1,66 @@
+---
+import { Font } from 'astro:assets';
+import type { SupportedLang } from '@/helpers/i18n-utils';
+
+interface Props {
+  title: string;
+  description: string;
+  image: string;
+  lang?: SupportedLang;
+}
+
+const { title, description, image, lang = 'en' } = Astro.props;
+const rssPath = lang === 'zh' ? '/zh/rss.xml' : '/rss.xml';
+---
+
+<!-- Fonts -->
+<Font cssVariable="--font-inter" preload />
+<Font cssVariable="--font-noto-sc" preload />
+<Font cssVariable="--font-jetbrains-mono" preload />
+
+<!-- Global Metadata -->
+<meta charset="utf-8" />
+<meta
+  name="viewport"
+  content="width=device-width, height=device-height, initial-scale=1, minimum-scale=1.0, viewport-fit=cover"
+/>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<link rel="sitemap" href="/sitemap-index.xml" />
+<link rel="alternate" type="text/plain" href="/llms.txt" title="LLMs.txt" />
+<meta name="generator" content={Astro.generator} />
+
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-WDQBQ7458J" is:inline></script>
+<script is:inline>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-WDQBQ7458J');
+</script>
+
+<!-- Primary Meta Tags -->
+<title>{title}</title>
+<meta name="title" content={title} />
+<meta name="description" content={description} />
+
+<!-- Open Graph / Facebook -->
+<meta property="og:type" content="website" />
+<meta property="og:url" content={Astro.url} />
+<meta property="og:title" content={title} />
+<meta property="og:description" content={description} />
+<meta property="og:image" content={new URL(image, Astro.url)} />
+
+<!-- Twitter -->
+<meta property="twitter:card" content="summary_large_image" />
+<meta property="twitter:url" content={Astro.url} />
+<meta property="twitter:title" content={title} />
+<meta property="twitter:description" content={description} />
+<meta property="twitter:image" content={new URL(image, Astro.url)} />
+
+<link
+    rel="alternate"
+    type="application/rss+xml"
+    title={title}
+    href={new URL(rssPath, Astro.site)}
+/>
