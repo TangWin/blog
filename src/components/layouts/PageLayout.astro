@@ -61,25 +61,7 @@ const themeScript = `
   document.documentElement.dataset.theme = mode;
 `;
 
-const basePath = (import.meta.env.BASE_URL || '/').replace(/\/$/, '');
-const langDetectScript = `
-  (function() {
-    if (sessionStorage.getItem('lang-detected')) return;
-    sessionStorage.setItem('lang-detected', '1');
-    var base = ${JSON.stringify(basePath)};
-    var path = window.location.pathname;
-    var rel = path;
-    if (base && (path === base || path.startsWith(base + '/'))) {
-      rel = path.slice(base.length) || '/';
-    }
-    if (rel === '/zh' || rel.startsWith('/zh/')) return;
-    var lang = navigator.language || navigator.userLanguage || '';
-    if (lang.startsWith('zh')) {
-      var target = (rel === '/' ? '/zh/' : '/zh' + rel);
-      window.location.replace(base + target);
-    }
-  })();
-`;
+const langDetectScript = "";
 ---
 
 <!doctype html>
