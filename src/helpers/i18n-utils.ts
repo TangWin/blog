@@ -2,9 +2,30 @@ import { getCollection } from 'astro:content';
 
 export type SupportedLang = 'en' | 'zh';
 
+function basePrefix(): string {
+  return (import.meta.env.BASE_URL || '/').replace(/\/$/, '');
+}
+
+function withBase(path: string): string {
+  const base = basePrefix();
+  const clean = path.startsWith('/') ? path : `/${path}`;
+  if (!base) return clean === '/' ? '/' : clean;
+  if (clean === '/') return `${base}/`;
+  return `${base}${clean}`;
+}
+
+function stripBase(pathname: string): string {
+  const base = basePrefix();
+  if (base && (pathname === base || pathname.startsWith(base + '/'))) {
+    const stripped = pathname.slice(base.length);
+    return stripped ? stripped : '/';
+  }
+  return pathname;
+}
+
 export function getLangFromUrl(url: URL): SupportedLang {
-  const [, lang] = url.pathname.split('/');
-  if (lang === 'zh') return 'zh';
+  const segment = stripBase(url.pathname).split('/').filter(Boolean)[0];
+  if (segment === 'zh') return 'zh';
   return 'en';
 }
 
@@ -14,12 +35,13 @@ export function getCollectionName(lang: SupportedLang): 'post-en' | 'post-zh' {
 
 export function localePath(path: string, lang: SupportedLang): string {
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
-  if (lang === 'en') return cleanPath;
-  return `/zh${cleanPath}`;
+  if (lang === 'en') return withBase(cleanPath);
+  if (cleanPath === '/') return withBase('/zh/');
+  return withBase(`/zh${cleanPath}`);
 }
 
 export function switchLangPath(currentPath: string, targetLang: SupportedLang): string {
-  let cleanPath = currentPath;
+  let cleanPath = stripBase(currentPath);
   if (cleanPath.startsWith('/zh/')) {
     cleanPath = cleanPath.slice(3);
   } else if (cleanPath === '/zh') {

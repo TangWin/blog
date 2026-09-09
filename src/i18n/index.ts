@@ -32,8 +32,12 @@ export function getCollectionName(lang: string): 'post-en' | 'post-zh' {
 }
 
 export function localePath(path: string, lang: string): string {
-  if (lang === 'en') return path;
-  return `/zh${path.startsWith('/') ? path : `/${path}`}`;
+  const base = (import.meta.env.BASE_URL || '/').replace(/\/$/, '');
+  const clean = path.startsWith('/') ? path : `/${path}`;
+  const localized = lang === 'en' ? clean : (clean === '/' ? '/zh/' : `/zh${clean}`);
+  if (!base) return localized;
+  if (localized === '/') return `${base}/`;
+  return `${base}${localized}`;
 }
 
 export default i18next;
