@@ -51,7 +51,7 @@ const tagList = Array.from(allTags).sort();
 
 <PageLayout title={i18next.t('tags.tagLabel', { tag })} description={i18next.t('tags.tagLabel', { tag })} lang={lang}>
   <div slot="header">
-    <a href="/zh/" class="inline-flex items-center gap-1.5 text-sm text-slate9 transition-colors hover:text-slate12 cursor-pointer mb-10">
+    <a href={localePath("/", "zh")} class="inline-flex items-center gap-1.5 text-sm text-slate9 transition-colors hover:text-slate12 cursor-pointer mb-10">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
       {i18next.t('nav.back')}
     </a>

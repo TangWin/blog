@@ -34,7 +34,12 @@ export function getCollectionName(lang: SupportedLang): 'post-en' | 'post-zh' {
 }
 
 export function localePath(path: string, lang: SupportedLang): string {
-  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  let cleanPath = path.startsWith('/') ? path : `/${path}`;
+  // avoid GitHub Pages 301 (history pollution) for directory URLs
+  const last = cleanPath.split('/').pop() || '';
+  if (cleanPath !== '/' && !cleanPath.endsWith('/') && !(/^[^.]+\.[a-z0-9]+$/i.test(last))) {
+    cleanPath += '/';
+  }
   if (lang === 'en') return withBase(cleanPath);
   if (cleanPath === '/') return withBase('/zh/');
   return withBase(`/zh${cleanPath}`);

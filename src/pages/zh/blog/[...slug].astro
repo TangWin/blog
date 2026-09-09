@@ -59,7 +59,7 @@ const formattedPubDate = pubDate.format('DD/MM/YYYY');
   <AffixTitle title={post.data.title} offsetTop={100} homePath="/zh/" client:idle />
 
   <div slot="header">
-    <a id="back" href="/zh/" class="inline-flex items-center gap-1.5 text-sm text-slate9 transition-colors hover:text-slate12 cursor-pointer mb-12">
+    <a id="back" href={localePath("/", "zh")} class="inline-flex items-center gap-1.5 text-sm text-slate9 transition-colors hover:text-slate12 cursor-pointer mb-12">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
       {i18next.t('nav.back') || '返回'}
     </a>

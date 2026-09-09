@@ -10,7 +10,8 @@ interface Props {
 }
 
 const { title, description, image, lang = 'en' } = Astro.props;
-const rssPath = lang === 'zh' ? '/zh/rss.xml' : '/rss.xml';
+const base = (import.meta.env.BASE_URL || '/').replace(/\/$/, '');
+const rssPath = lang === 'zh' ? `${base}/zh/rss.xml` : `${base}/rss.xml`;
 ---
 
 <!-- Fonts -->
@@ -24,9 +25,9 @@ const rssPath = lang === 'zh' ? '/zh/rss.xml' : '/rss.xml';
   name="viewport"
   content="width=device-width, height=device-height, initial-scale=1, minimum-scale=1.0, viewport-fit=cover"
 />
-<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-<link rel="sitemap" href="/sitemap-index.xml" />
-<link rel="alternate" type="text/plain" href="/llms.txt" title="LLMs.txt" />
+<link rel="icon" type="image/svg+xml" href={`${import.meta.env.BASE_URL}favicon.svg`} />
+<link rel="sitemap" href={`${import.meta.env.BASE_URL}sitemap-index.xml`} />
+<link rel="alternate" type="text/plain" href={`${import.meta.env.BASE_URL}llms.txt`} title="LLMs.txt" />
 <meta name="generator" content={Astro.generator} />
 
 <!-- Google tag (gtag.js) -->
