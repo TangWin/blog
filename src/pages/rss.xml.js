@@ -7,7 +7,7 @@ import sanitizeHtml from 'sanitize-html';
 import siteConfig from '~@/site.config';
 
 export async function GET(context) {
-  const blog = await getCollection('post-en');
+  const blog = await getCollection('post-zh');
 
   const renderers = await loadRenderers([mdxContainerRenderer()]);
   const container = await experimental_AstroContainer.create({
@@ -22,7 +22,7 @@ export async function GET(context) {
       const htmlStr = await container.renderToString(Content);
 
       return {
-        link: `/blog/${post.id}/`,
+        link: new URL(`blog/${post.id}/`, siteConfig.site + '/').href,
         title: post.data.title,
         content: sanitizeHtml(htmlStr, {
           allowedTags: sanitizeHtml.defaults.allowedTags.concat(['img'])
@@ -32,13 +32,13 @@ export async function GET(context) {
     }));
 
   const rssOptions = {
-    stylesheet: '/pretty-feed-v3.xsl',
+    stylesheet: `${import.meta.env.BASE_URL}pretty-feed-v3.xsl`,
     title: siteConfig.title,
     description: siteConfig.description,
     site: context.site,
     trailingSlash: false,
     items: postItems,
-    customData: '<language>en</language>',
+    customData: '<language>zh-CN</language>',
   }
 
   if(siteConfig.follow) {

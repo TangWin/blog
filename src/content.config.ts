@@ -1,4 +1,5 @@
-import { defineCollection, z } from 'astro:content';
+import { defineCollection } from 'astro:content';
+import { z } from 'astro/zod';
 import { glob } from 'astro/loaders';
 
 const postSchema = z
@@ -23,11 +24,6 @@ const postSchema = z
     },
   );
 
-const postEn = defineCollection({
-  loader: glob({ pattern: '**/*.md', base: './src/content/post/en' }),
-  schema: postSchema,
-});
-
 const postZh = defineCollection({
   loader: glob({ pattern: '**/*.md', base: './src/content/post/zh' }),
   schema: postSchema,
@@ -43,7 +39,6 @@ const pagesCollection = defineCollection({
 });
 
 export const collections = {
-  'post-en': postEn,
   'post-zh': postZh,
   pages: pagesCollection,
 };

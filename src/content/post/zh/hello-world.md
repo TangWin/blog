@@ -12,7 +12,7 @@ pubDate: 2026-09-09
 
 ## 本站
 
-- 基于 [ink-blog](https://github.com/OldJii/ink-blog)（Astro）
+- 基于 [Astro](https://astro.build/)，由开源模板 ink-blog 改造
 - 托管在 GitHub Pages：`https://tangwin.github.io/blog/`
 - 评论以后再说
 

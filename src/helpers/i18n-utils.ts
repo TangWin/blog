@@ -25,12 +25,13 @@ function stripBase(pathname: string): string {
 
 export function getLangFromUrl(url: URL): SupportedLang {
   const segment = stripBase(url.pathname).split('/').filter(Boolean)[0];
-  if (segment === 'zh') return 'zh';
-  return 'en';
+  void segment;
+  return 'zh';
 }
 
-export function getCollectionName(lang: SupportedLang): 'post-en' | 'post-zh' {
-  return lang === 'zh' ? 'post-zh' : 'post-en';
+export function getCollectionName(lang: SupportedLang): 'post-zh' {
+  void lang;
+  return 'post-zh';
 }
 
 export function localePath(path: string, lang: SupportedLang): string {
@@ -40,9 +41,8 @@ export function localePath(path: string, lang: SupportedLang): string {
   if (cleanPath !== '/' && !cleanPath.endsWith('/') && !(/^[^.]+\.[a-z0-9]+$/i.test(last))) {
     cleanPath += '/';
   }
-  if (lang === 'en') return withBase(cleanPath);
-  if (cleanPath === '/') return withBase('/zh/');
-  return withBase(`/zh${cleanPath}`);
+  void lang; // Chinese-only site: all content lives at the root
+  return withBase(cleanPath);
 }
 
 export function switchLangPath(currentPath: string, targetLang: SupportedLang): string {

@@ -1,0 +1,33 @@
+---
+// Old /zh/* URLs (before Chinese moved to the site root) redirect to their new location.
+import { getCollection } from 'astro:content';
+
+export async function getStaticPaths() {
+  const posts = await getCollection('post-zh');
+  const tags = [...new Set(posts.flatMap((p) => p.data.tags ?? []))];
+  const paths = [
+    undefined,
+    'about',
+    'tags',
+    ...posts.map((p) => `blog/${p.id}`),
+    ...tags.map((t) => `tags/${t}`),
+  ];
+  return paths.map((path) => ({ params: { path } }));
+}
+
+const { path } = Astro.params;
+const target = `${import.meta.env.BASE_URL}${path ? `${path}/` : ''}`;
+const canonical = new URL(target, Astro.site).href;
+---
+
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>跳转中…</title>
+    <meta http-equiv="refresh" content={`0;url=${target}`} />
+    <meta name="robots" content="noindex" />
+    <link rel="canonical" href={canonical} />
+  </head>
+  <body><a href={target}>页面已迁移，点击跳转</a></body>
+</html>

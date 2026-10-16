@@ -3,7 +3,6 @@ import siteConfig from '~@/site.config';
 import type { ThemeOptions } from '@/typings/config';
 import ThemeSelect from '@/components/theme-select';
 import SocialLinks from '@/components/social-links';
-import { switchLangPath } from '@/helpers/i18n-utils';
 import type { SupportedLang } from '@/helpers/i18n-utils';
 
 interface Props {
@@ -11,10 +10,8 @@ interface Props {
   lang?: SupportedLang;
 }
 
-const { copyright = siteConfig.footer?.copyright, lang = 'en' } = Astro.props;
-const currentPath = Astro.url.pathname;
-const otherLang: SupportedLang = lang === 'en' ? 'zh' : 'en';
-const switchUrl = switchLangPath(currentPath, otherLang);
+const { copyright = siteConfig.footer?.copyright, lang = 'zh' } = Astro.props;
+void lang;
 ---
 
 <footer class="mt-auto pt-16">
@@ -25,13 +22,6 @@ const switchUrl = switchLangPath(currentPath, otherLang);
         <span>{copyright}</span>
       </div>
       <div class="flex items-center gap-3">
-        <a
-          href={switchUrl}
-          class="transition-colors hover:text-slate11"
-          title={lang === 'en' ? '切换到中文' : 'Switch to English'}
-        >
-          {lang === 'en' ? '中文' : 'EN'}
-        </a>
         {(siteConfig.theme as ThemeOptions).enableUserChange && <ThemeSelect client:visible />}
       </div>
     </div>
