@@ -16,6 +16,19 @@ export default defineSiteConfig({
   footer: {
     copyright: '© 2026 TangWin / Peter',
   },
+  // Giscus comments (GitHub Discussions, "Announcements" category).
+  // Requires the giscus GitHub App installed on TangWin/blog: https://github.com/apps/giscus
+  giscus: {
+    repo: 'TangWin/blog',
+    repoId: 'R_kgDOUTFxAw',
+    category: 'Announcements',
+    categoryId: 'DIC_kwDOUTFxA84DIl-g',
+    mapping: 'pathname',
+    reactionsEnabled: true,
+    inputPosition: 'bottom',
+  },
+  // Optional analytics; off unless an ID is set, e.g. { googleAnalyticsId: 'G-XXXXXXX' }
+  analytics: {},
   socialLinks: [
     { icon: 'github', link: 'https://github.com/TangWin' },
   ],
