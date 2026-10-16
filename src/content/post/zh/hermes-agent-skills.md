@@ -61,28 +61,22 @@ Agent Skills 则是跨产品的 **「文件夹 + SKILL.md」渐进披露格式**
 
 ## 3. 路径 A：CLI/TUI → 模型 → 工具 → 回复
 
-```mermaid
-sequenceDiagram
-  participant U as 用户
-  participant CLI as HermesCLI
-  participant A as AIAgent
-  participant L as conversation_loop
-  participant T as handle_function_call
-  participant M as LLM
-
-  U->>CLI: 输入 / 斜杠命令
-  CLI->>A: run_conversation(...)
-  A->>L: turn_facade（lease）
-  loop 预算内
-    L->>M: turn_api_*
-    alt 有 tool_calls
-      L->>T: model_tools / inline executors
-      T-->>L: tool results 追加
-    else 无工具
-      L->>CLI: final_response（可流式）
-    end
-  end
-```
+<div class="dg heti-skip" role="figure" aria-label="图 · 路径 A：CLI/TUI → 模型 → 工具 → 回复">
+<span class="dg-title">图 · 路径 A：CLI/TUI → 模型 → 工具 → 回复</span>
+<div class="dg-actors"><span class="dg-box ">用户</span><span class="dg-box ">HermesCLI</span><span class="dg-box ">AIAgent</span><span class="dg-box ">conversation_loop</span><span class="dg-box ">handle_function_call</span><span class="dg-box ">LLM</span></div>
+<div class="dg-seq">
+<div class="dg-msg "><span class="dg-who">用户 → HermesCLI</span><span class="dg-text">输入 / 斜杠命令</span></div>
+<div class="dg-msg "><span class="dg-who">HermesCLI → AIAgent</span><span class="dg-text">run_conversation(...)</span></div>
+<div class="dg-msg "><span class="dg-who">AIAgent → loop</span><span class="dg-text">turn_facade（lease）</span></div>
+<span class="dg-note">↻ 循环（预算内）：</span>
+<div class="dg-msg is-loop"><span class="dg-who">loop → LLM</span><span class="dg-text">turn_api_*</span></div>
+<span class="dg-note">　如果有 tool_calls：</span>
+<div class="dg-msg is-loop"><span class="dg-who">loop → function_call</span><span class="dg-text">model_tools / inline executors</span></div>
+<div class="dg-msg is-back is-loop"><span class="dg-who">function_call → loop</span><span class="dg-text">tool results 追加</span></div>
+<span class="dg-note">　如果无工具：</span>
+<div class="dg-msg is-back"><span class="dg-who">loop → HermesCLI</span><span class="dg-text">final_response（可流式）</span></div>
+</div>
+</div>
 
 | 步骤 | 文件 / 符号 |
 |------|-------------|

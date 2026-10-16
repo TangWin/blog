@@ -21,14 +21,11 @@ Karpathy 帖子的出发点是：**我们会花越来越多的时间去理解语
 
 他给出的办法是一个逐级升级的输出格式阶梯，每一级都“But even better”：
 
-```mermaid
-flowchart LR
-  A["① 写作<br/>ASD-STE100 受控英语"] -->|更好| B["② 图表 / 图片"]
-  B -->|更好| C["③ HTML 交互网页"]
-  C -->|更好| D["④ 定制讲解视频<br/>3b1b 风格 + 配音"]
-  A -.- A1["成本最低<br/>最易审阅"]
-  D -.- D1["表达力最强<br/>制作成本最高"]
-```
+<div class="dg heti-skip" role="figure" aria-label="输出格式阶梯">
+<span class="dg-title">图 1 · 输出格式阶梯（每往右一级都 “But even better”）</span>
+<div class="dg-row"><span class="dg-box is-accent">① 写作<small>ASD-STE100 受控英语</small></span><span class="dg-arrow"></span><span class="dg-box ">② 图表 / 图片</span><span class="dg-arrow"></span><span class="dg-box ">③ HTML 交互网页</span><span class="dg-arrow"></span><span class="dg-box is-accent">④ 定制讲解视频<small>3b1b 风格 + 配音</small></span></div>
+<div class="dg-scale"><span>← 成本最低、最易审阅</span><span>表达力最强、制作成本最高 →</span></div>
+</div>
 
 ---
 
@@ -116,7 +113,7 @@ Keep all technical terms, identifiers, and code unchanged.
 
 - **结构外显**：依赖关系、时序、状态转换这类信息，本来就是“图形状”的；用文字表达等于让读者在脑子里重建图。
 - **一眼发现异常**：环形依赖、孤立节点、缺失的分支，在图上非常显眼，在文字里很容易被略过。
-- **可审阅、可 diff**：让模型输出 **Mermaid / Graphviz / PlantUML** 这类“图即代码”，既能渲染，又能放进 Git 跟踪变化（本文的图就是 Mermaid）。
+- **可审阅、可 diff**：让模型输出 **Mermaid / Graphviz / PlantUML** 这类“图即代码”，既能渲染，又能放进 Git 跟踪变化；也可以直接让它输出纯 HTML/CSS 或 SVG 图（本文的图就是纯 HTML/CSS，不依赖 JS）。
 
 ### Prompt 模板
 
@@ -209,22 +206,11 @@ Create a 3Blue1Brown-style explainer video on <topic>, about 2–3 minutes.
 
 阶梯是“越往上越好”，但不是每次都要爬到顶。成本、审阅速度和内容形状都要考虑：
 
-```mermaid
-flowchart TD
-  S["要理解的内容"] --> Q1{"是操作步骤 / 结论 / 规格？"}
-  Q1 -->|是| W["① ASD-STE100 风格文字"]
-  Q1 -->|否| Q2{"核心是结构 / 依赖 / 时序？"}
-  Q2 -->|是| G["② Mermaid 图"]
-  Q2 -->|否| Q3{"需要调参数、对比或探索？"}
-  Q3 -->|是| H["③ 单文件 HTML"]
-  Q3 -->|否| Q4{"是抽象过程，且值得反复看或分享？"}
-  Q4 -->|是| V["④ 讲解视频"]
-  Q4 -->|否| W
-  W --> C["保留原文对照，核对关键结论"]
-  G --> C
-  H --> C
-  V --> C
-```
+<div class="dg heti-skip" role="figure" aria-label="选择输出格式的决策流程">
+<span class="dg-title">图 2 · 按内容类型选择输出格式</span>
+<div class="dg-steps"><span class="dg-box is-end">要理解的内容</span><div class="dg-down"><span class="dg-arrow is-down"></span></div><div class="dg-step"><span class="dg-box is-q">是操作步骤 / 结论 / 规格？</span><span class="dg-arrow"><span class="dg-yes">是</span></span><span class="dg-box is-accent">① ASD-STE100 风格文字</span></div><div class="dg-down"><span class="dg-arrow is-down"><span class="dg-no">否</span></span></div><div class="dg-step"><span class="dg-box is-q">核心是结构 / 依赖 / 时序？</span><span class="dg-arrow"><span class="dg-yes">是</span></span><span class="dg-box is-accent">② Mermaid / 图</span></div><div class="dg-down"><span class="dg-arrow is-down"><span class="dg-no">否</span></span></div><div class="dg-step"><span class="dg-box is-q">需要调参数、对比或探索？</span><span class="dg-arrow"><span class="dg-yes">是</span></span><span class="dg-box is-accent">③ 单文件 HTML</span></div><div class="dg-down"><span class="dg-arrow is-down"><span class="dg-no">否</span></span></div><div class="dg-step"><span class="dg-box is-q">是抽象过程，且值得反复看或分享？</span><span class="dg-arrow"><span class="dg-yes">是</span></span><span class="dg-box is-accent">④ 讲解视频</span></div><div class="dg-down"><span class="dg-arrow is-down"><span class="dg-no">否</span></span></div><div class="dg-step"><span class="dg-box is-q">都不是</span><span class="dg-arrow"></span><span class="dg-box is-accent">① 文字即可</span></div></div>
+<div class="dg-return">无论选哪种：保留原文对照，核对关键结论</div>
+</div>
 
 ---
 
@@ -242,15 +228,11 @@ flowchart TD
 
 把上面串起来，就是 Karpathy 所说的“人的工作上移到监督与理解”的一个具体闭环：
 
-```mermaid
-flowchart LR
-  A["Agent 完成工作<br/>代码 / 分析 / 报告"] --> B["人请求可读制品<br/>STE 摘要 / 图 / HTML / 视频"]
-  B --> C["人审阅<br/>对照原文、核对关键结论"]
-  C --> D{"符合预期？"}
-  D -->|是| E["接受 / 合并"]
-  D -->|否| F["人给出纠正<br/>具体指出问题"]
-  F --> A
-```
+<div class="dg heti-skip" role="figure" aria-label="监督循环">
+<span class="dg-title">图 3 · 监督循环</span>
+<div class="dg-row"><span class="dg-box ">Agent 完成工作<small>代码、分析、报告</small></span><span class="dg-arrow"></span><span class="dg-box is-accent">人请求可读制品<small>摘要、图、网页、视频</small></span><span class="dg-arrow"></span><span class="dg-box ">人审阅<small>对照原文、核对结论</small></span><span class="dg-arrow"></span><span class="dg-box is-q">符合预期？</span><span class="dg-arrow"><span class="dg-yes">是</span></span><span class="dg-box is-accent">接受 / 合并</span></div>
+<div class="dg-return"><span class="dg-no">否</span> → 人给出具体纠正 → 回到「Agent 完成工作」</div>
+</div>
 
 关键在 B：**不是去读 agent 的原始产出，而是让它为你生成一个“专门用来理解”的制品**——而这种制品现在已经便宜到可以每次都做一个。
 
@@ -260,27 +242,10 @@ flowchart LR
 
 视频 [How I use LLMs](https://www.youtube.com/watch?v=EWvNQjAaOHw)（2025-02-27）是一份面向大众的实用指南。以下要点均能在视频中找到对应内容：
 
-```mermaid
-flowchart TD
-  T["新话题 / 新问题"] --> N["开一个新对话<br/>清空上下文"]
-  N --> M{"任务难度？"}
-  M -->|简单问答、写作| F["快速模型"]
-  M -->|数学、代码、复杂推理| R["Thinking 推理模型"]
-  F --> X{"需要外部信息或计算？"}
-  R --> X
-  X -->|最新信息| S["联网搜索 / Deep Research"]
-  X -->|计算、数据分析| P["代码解释器 Python"]
-  X -->|文档、论文、书| U["上传原文进上下文"]
-  X -->|否| A["直接回答"]
-  S --> V["核对：读代码、看来源、查关键数字"]
-  P --> V
-  U --> V
-  A --> V
-  V --> K{"重要决定？"}
-  K -->|是| C["LLM Council：问多个模型对照"]
-  K -->|否| D["完成"]
-  C --> D
-```
+<div class="dg heti-skip" role="figure" aria-label="Karpathy 的日常 LLM 工作流">
+<span class="dg-title">图 4 · Karpathy 的日常 LLM 工作流</span>
+<div class="dg-steps"><span class="dg-box is-end">新话题 / 新问题</span><div class="dg-down"><span class="dg-arrow is-down"></span></div><span class="dg-box is-accent">开一个新对话<small>清空上下文</small></span><div class="dg-down"><span class="dg-arrow is-down">按任务难度选模型</span></div><div class="dg-fan"><span class="dg-box ">快速模型<small>简单问答、写作</small></span><span class="dg-box ">Thinking 推理模型<small>数学、代码、复杂推理</small></span></div><div class="dg-down"><span class="dg-arrow is-down">需要外部信息或计算？</span></div><div class="dg-fan"><span class="dg-box ">联网搜索 / Deep Research<small>最新信息</small></span><span class="dg-box ">代码解释器（Python）<small>计算、数据分析</small></span><span class="dg-box ">上传原文<small>文档、论文、书</small></span><span class="dg-box ">直接回答<small>不需要工具</small></span></div><div class="dg-down"><span class="dg-arrow is-down"></span></div><span class="dg-box is-accent">核对<small>读代码、看来源、查关键数字</small></span><div class="dg-down"><span class="dg-arrow is-down"></span></div><div class="dg-step"><span class="dg-box is-q">是重要决定吗？</span><span class="dg-arrow"><span class="dg-yes">是</span></span><span class="dg-box is-accent">LLM Council：问多个模型对照</span></div><div class="dg-down"><span class="dg-arrow is-down"><span class="dg-no">否</span></span></div><span class="dg-box is-end">完成</span></div>
+</div>
 
 ### 1. 一个话题开一个新对话
 

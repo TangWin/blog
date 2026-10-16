@@ -92,27 +92,22 @@ README 自行声明：可能违反上游 ToS，仅供学习。
 
 **OpenAI 兼容主路径：**
 
-```mermaid
-sequenceDiagram
-  participant C as 客户端
-  participant MW as APIKeyAuth
-  participant H as OpenAIGatewayHandler
-  participant S as OpenAIGatewayService
-  participant R as Redis粘性
-  participant U as 上游账号
-  participant B as RecordUsage
-
-  C->>MW: Bearer sk-xxx + chat/completions
-  MW->>MW: 加载 Key/User/Group，计费准入
-  MW->>H: 过白名单 / composite 路由
-  H->>H: 读 body、安全审计、并发槽
-  H->>S: GenerateSessionHash
-  S->>R: 粘性绑定 / 选号
-  S->>S: SelectAccountWithScheduler<br/>RPM/窗口/利润控制
-  S->>U: ForwardAsChatCompletions（流式）
-  U-->>C: SSE chunks
-  S->>B: 异步记用量 / 扣配额
-```
+<div class="dg heti-skip" role="figure" aria-label="图 · Sub2API：OpenAI 兼容主路径">
+<span class="dg-title">图 · Sub2API：OpenAI 兼容主路径</span>
+<div class="dg-actors"><span class="dg-box ">客户端</span><span class="dg-box ">APIKeyAuth</span><span class="dg-box ">OpenAIGatewayHandler</span><span class="dg-box ">OpenAIGatewayService</span><span class="dg-box ">Redis 粘性</span><span class="dg-box ">上游账号</span><span class="dg-box ">RecordUsage</span></div>
+<div class="dg-seq">
+<div class="dg-msg "><span class="dg-who">客户端 → APIKeyAuth</span><span class="dg-text">Bearer sk-xxx + chat/completions</span></div>
+<div class="dg-msg "><span class="dg-who">APIKeyAuth → APIKeyAuth</span><span class="dg-text">加载 Key / User / Group，计费准入</span></div>
+<div class="dg-msg "><span class="dg-who">APIKeyAuth → Handler</span><span class="dg-text">过白名单 / composite 路由</span></div>
+<div class="dg-msg "><span class="dg-who">Handler → Handler</span><span class="dg-text">读 body、安全审计、并发槽</span></div>
+<div class="dg-msg "><span class="dg-who">Handler → Service</span><span class="dg-text">GenerateSessionHash</span></div>
+<div class="dg-msg "><span class="dg-who">Service → Redis</span><span class="dg-text">粘性绑定 / 选号</span></div>
+<div class="dg-msg "><span class="dg-who">Service → Service</span><span class="dg-text">SelectAccountWithScheduler：RPM / 窗口 / 利润控制</span></div>
+<div class="dg-msg "><span class="dg-who">Service → 上游账号</span><span class="dg-text">ForwardAsChatCompletions（流式）</span></div>
+<div class="dg-msg is-back"><span class="dg-who">上游账号 → 客户端</span><span class="dg-text">SSE chunks</span></div>
+<div class="dg-msg "><span class="dg-who">Service → RecordUsage</span><span class="dg-text">异步记用量 / 扣配额</span></div>
+</div>
+</div>
 
 | 步骤 | 关键符号 / 文件 |
 |------|----------------|
@@ -185,30 +180,24 @@ Anthropic 组同 URL 支路：`GatewayHandler.ChatCompletions` → `SelectAccoun
 
 ### 3.3 请求全路径（例：`POST /gemini-antigravity/v1/chat/completions`）
 
-```mermaid
-sequenceDiagram
-  participant C as 客户端
-  participant RH as request-handler
-  participant Auth as default-auth
-  participant API as api-manager
-  participant Pool as ProviderPoolManager
-  participant Ad as AntigravityAdapter
-  participant Core as antigravity-core
-  participant Up as Google Code Assist
-
-  C->>RH: /gemini-antigravity/v1/chat/completions
-  RH->>RH: 路径首段 → MODEL_PROVIDER，剥前缀
-  RH->>Auth: REQUIRED_API_KEY
-  Auth->>API: handleAPIRequests
-  API->>API: handleContentGenerationRequest(OPENAI_CHAT)
-  API->>Pool: acquireSlotWithFallback / 打分选节点
-  Pool->>Ad: getServiceAdapter
-  Ad->>Ad: convertData(request) 若协议不一致
-  Ad->>Core: generateContentStream
-  Core->>Up: 客户端形态头 + OAuth（可经 TLS sidecar）
-  Up-->>Core: 流式块
-  Core-->>C: 转回 OpenAI SSE；失败则换凭据重试
-```
+<div class="dg heti-skip" role="figure" aria-label="图 · AIClient2API：/gemini-antigravity/v1/chat/completions">
+<span class="dg-title">图 · AIClient2API：/gemini-antigravity/v1/chat/completions</span>
+<div class="dg-actors"><span class="dg-box ">客户端</span><span class="dg-box ">request-handler</span><span class="dg-box ">default-auth</span><span class="dg-box ">api-manager</span><span class="dg-box ">ProviderPoolManager</span><span class="dg-box ">AntigravityAdapter</span><span class="dg-box ">antigravity-core</span><span class="dg-box ">Google Code Assist</span></div>
+<div class="dg-seq">
+<div class="dg-msg "><span class="dg-who">客户端 → request-handler</span><span class="dg-text">/gemini-antigravity/v1/chat/completions</span></div>
+<div class="dg-msg "><span class="dg-who">request-handler → request-handler</span><span class="dg-text">路径首段 → MODEL_PROVIDER，剥前缀</span></div>
+<div class="dg-msg "><span class="dg-who">request-handler → default-auth</span><span class="dg-text">REQUIRED_API_KEY</span></div>
+<div class="dg-msg "><span class="dg-who">default-auth → api-manager</span><span class="dg-text">handleAPIRequests</span></div>
+<div class="dg-msg "><span class="dg-who">api-manager → api-manager</span><span class="dg-text">handleContentGenerationRequest(OPENAI_CHAT)</span></div>
+<div class="dg-msg "><span class="dg-who">api-manager → Pool</span><span class="dg-text">acquireSlotWithFallback / 打分选节点</span></div>
+<div class="dg-msg "><span class="dg-who">Pool → Adapter</span><span class="dg-text">getServiceAdapter</span></div>
+<div class="dg-msg "><span class="dg-who">Adapter → Adapter</span><span class="dg-text">convertData(request)，若协议不一致</span></div>
+<div class="dg-msg "><span class="dg-who">Adapter → core</span><span class="dg-text">generateContentStream</span></div>
+<div class="dg-msg "><span class="dg-who">core → Google</span><span class="dg-text">客户端形态头 + OAuth（可经 TLS sidecar）</span></div>
+<div class="dg-msg is-back"><span class="dg-who">Google → core</span><span class="dg-text">流式块</span></div>
+<div class="dg-msg is-back"><span class="dg-who">core → 客户端</span><span class="dg-text">转回 OpenAI SSE；失败则换凭据重试</span></div>
+</div>
+</div>
 
 | 步骤 | 关键点 |
 |------|--------|
