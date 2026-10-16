@@ -143,9 +143,14 @@ const formattedPubDate = pubDate.format('DD/MM/YYYY');
   const heti = new Heti('.blog-content');
   heti.autoSpacing();
 
-  // Load Mermaid only on pages that actually contain diagrams
-  if (document.querySelector('.mermaid')) {
-    import('mermaid').then(({ default: mermaid }) => {
+  // Load Mermaid only on pages that actually contain diagrams.
+  // Post content sits inside a client:only React island (ImageLightbox), so the
+  // .mermaid blocks are only in the DOM after hydration: watch for them.
+  const PENDING = '.mermaid:not([data-processed])';
+  let mermaidPromise: Promise<typeof import('mermaid').default> | undefined;
+  let busy = false;
+  const loadMermaid = () =>
+    (mermaidPromise ??= import('mermaid').then(({ default: mermaid }) => {
       mermaid.initialize({
         startOnLoad: false,
         theme: 'neutral',
@@ -155,7 +160,20 @@ const formattedPubDate = pubDate.format('DD/MM/YYYY');
         fontSize: 14,
         flowchart: { useMaxWidth: true, htmlLabels: true },
       });
-      mermaid.run();
-    });
-  }
+      return mermaid;
+    }));
+  const renderMermaid = async () => {
+    if (busy || !document.querySelector(PENDING)) return;
+    busy = true;
+    try {
+      const mermaid = await loadMermaid();
+      await mermaid.run({ querySelector: PENDING });
+    } catch (err) {
+      console.error('[mermaid]', err);
+    } finally {
+      busy = false;
+    }
+  };
+  renderMermaid();
+  new MutationObserver(() => renderMermaid()).observe(document.body, { childList: true, subtree: true });
 </script>
