@@ -7,7 +7,7 @@ export const remarkMermaid: Plugin<[], Root> = () => {
     visit(tree, 'code', (node: Code) => {
       if (node.lang === 'mermaid') {
         (node as any).type = 'html';
-        (node as any).value = `<div class="mermaid">\n${node.value}\n</div>`;
+        (node as any).value = `<div class="mermaid heti-skip">\n${node.value}\n</div>`;
         delete (node as any).lang;
         delete (node as any).meta;
       }
