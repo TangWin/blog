@@ -39,41 +39,24 @@ function buildRemarkPlugins() {
 }
 
 function computedIntegrations() {
-  return [astroExpressiveCode(), mdx(), react(), sitemap(siteConfig.sitemap)];
+  return [astroExpressiveCode(), mdx(), react(), sitemap({
+    ...siteConfig.sitemap,
+    filter: (page) => !/\/(404|zh)(\/|$)/.test(new URL(page).pathname),
+  })];
 }
 
 export default defineConfig({
   site: siteConfig.site,
   base: '/blog/',
-  i18n: {
-    defaultLocale: 'en',
-    locales: ['en', 'zh'],
-    routing: {
-      prefixDefaultLocale: false,
-      fallbackType: 'rewrite',
-    },
-    fallback: {
-      zh: 'en',
-    },
-  },
   integrations: computedIntegrations(),
   fonts: [
     {
       name: 'Inter',
       cssVariable: '--font-inter',
       provider: fontProviders.google(),
-      weights: [400, 500, 600, 700],
+      weights: [400, 700],
       styles: ['normal'],
       subsets: ['latin'],
-      fallbacks: ['system-ui', 'sans-serif'],
-    },
-    {
-      name: 'Noto Sans SC',
-      cssVariable: '--font-noto-sc',
-      provider: fontProviders.google(),
-      weights: [400, 500, 600, 700],
-      styles: ['normal'],
-      subsets: ['chinese-simplified', 'latin'],
       fallbacks: ['system-ui', 'sans-serif'],
     },
     {

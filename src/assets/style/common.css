@@ -151,7 +151,8 @@ html {
 
 body {
   @apply text-base text-slate12 antialiased;
-  font-family: var(--font-inter), var(--font-noto-sc), system-ui, sans-serif;
+  /* Chinese uses system CJK fonts (no webfont download) */
+  font-family: var(--font-inter), 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans CJK SC', 'Source Han Sans SC', system-ui, sans-serif;
 }
 
 code, pre, .monospace {

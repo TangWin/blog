@@ -52,6 +52,10 @@ export interface SiteConfig {
   contentWidth?: {
     type: 'narrow' | 'medium' | 'wide' | 'full';
   };
+  analytics?: {
+    /** Google Analytics 4 measurement ID, e.g. G-XXXXXXX. Omit to disable. */
+    googleAnalyticsId?: string;
+  };
   giscus?: {
     repo: string;
     repoId: string;

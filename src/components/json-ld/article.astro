@@ -15,7 +15,7 @@ const {
   description,
   pubDate,
   lastModified = pubDate,
-  image = '/og_image.png',
+  image = `${import.meta.env.BASE_URL}og_image.png`,
 } = Astro.props;
 
 const imageUrl = typeof image === 'string' ? image : image.src;
@@ -37,7 +37,7 @@ const jsonLd = {
     name: siteConfig.title,
     logo: {
       '@type': 'ImageObject',
-      url: new URL(siteConfig.avatar || '/avatar.png', siteConfig.site).href,
+      url: new URL(siteConfig.avatar || `${import.meta.env.BASE_URL}avatar.png`, siteConfig.site).href,
     },
   },
   mainEntityOfPage: {

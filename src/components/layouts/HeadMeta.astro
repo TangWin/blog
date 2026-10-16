@@ -1,6 +1,8 @@
 ---
 import { Font } from 'astro:assets';
 import type { SupportedLang } from '@/helpers/i18n-utils';
+import siteConfig from '~@/site.config';
+const gaId = siteConfig.analytics?.googleAnalyticsId;
 
 interface Props {
   title: string;
@@ -9,15 +11,14 @@ interface Props {
   lang?: SupportedLang;
 }
 
-const { title, description, image, lang = 'en' } = Astro.props;
+const { title, description, image } = Astro.props;
 const base = (import.meta.env.BASE_URL || '/').replace(/\/$/, '');
-const rssPath = lang === 'zh' ? `${base}/zh/rss.xml` : `${base}/rss.xml`;
+const rssPath = `${base}/rss.xml`;
 ---
 
 <!-- Fonts -->
-<Font cssVariable="--font-inter" preload />
-<Font cssVariable="--font-noto-sc" preload />
-<Font cssVariable="--font-jetbrains-mono" preload />
+<Font cssVariable="--font-inter" />
+<Font cssVariable="--font-jetbrains-mono" />
 
 <!-- Global Metadata -->
 <meta charset="utf-8" />
@@ -30,15 +31,17 @@ const rssPath = lang === 'zh' ? `${base}/zh/rss.xml` : `${base}/rss.xml`;
 <link rel="alternate" type="text/plain" href={`${import.meta.env.BASE_URL}llms.txt`} title="LLMs.txt" />
 <meta name="generator" content={Astro.generator} />
 
-<!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-WDQBQ7458J" is:inline></script>
-<script is:inline>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-
-  gtag('config', 'G-WDQBQ7458J');
-</script>
+{gaId && (
+  <>
+    <script async src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`} is:inline></script>
+    <script is:inline define:vars={{ gaId }}>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', gaId);
+    </script>
+  </>
+)}
 
 <!-- Primary Meta Tags -->
 <title>{title}</title>

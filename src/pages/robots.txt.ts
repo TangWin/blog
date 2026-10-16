@@ -30,6 +30,8 @@ Sitemap: ${sitemapURL.href}
 `;
 
 export const GET: APIRoute = ({ site }) => {
-  const sitemapURL = new URL('sitemap-index.xml', site);
-  return new Response(getRobotsTxt(sitemapURL, site!));
+  // `site` has no trailing slash (https://…/blog); add base so URLs resolve under /blog/
+  const siteURL = new URL(import.meta.env.BASE_URL, site);
+  const sitemapURL = new URL('sitemap-index.xml', siteURL);
+  return new Response(getRobotsTxt(sitemapURL, siteURL));
 };
