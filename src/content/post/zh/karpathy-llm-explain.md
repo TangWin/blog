@@ -22,7 +22,7 @@ Karpathy 帖子的出发点是：**我们会花越来越多的时间去理解语
 他给出的办法是一个逐级升级的输出格式阶梯，每一级都“But even better”：
 
 <div class="dg heti-skip" role="figure" aria-label="输出格式阶梯">
-<span class="dg-title">图 1 · 输出格式阶梯（每往右一级都 “But even better”）</span>
+<span class="dg-title">图 1 · 输出格式阶梯（每升一级都 “But even better”）</span>
 <div class="dg-row"><span class="dg-box is-accent">① 写作<small>ASD-STE100 受控英语</small></span><span class="dg-arrow"></span><span class="dg-box ">② 图表 / 图片</span><span class="dg-arrow"></span><span class="dg-box ">③ HTML 交互网页</span><span class="dg-arrow"></span><span class="dg-box is-accent">④ 定制讲解视频<small>3b1b 风格 + 配音</small></span></div>
 <div class="dg-scale"><span>← 成本最低、最易审阅</span><span>表达力最强、制作成本最高 →</span></div>
 </div>

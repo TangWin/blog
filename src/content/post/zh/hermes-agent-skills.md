@@ -1,6 +1,6 @@
 ---
-title: Hermes Agent × Agent Skills 架构深挖
-description: Hermes Agent 的窄腰设计：共享对话环、消息网关中间件、Profile/multiplex 隔离与终端后端；以及 agentskills.io 开放规格、渐进披露和 Hermes 的技能自写与 Curator。
+title: 核心很小、能力外挂：我读 Hermes Agent 和 Agent Skills 规范的源码笔记
+description: Hermes Agent 用一个共享的对话循环服务 CLI、TUI、消息机器人和定时任务，能力都放在边上；Agent Skills 是一个跨 Claude Code、Cursor、Hermes 通用的“技能文件夹”规范。我读完代码，讲清楚它们怎么工作、哪里设计得好、哪些地方不能当成安全边界。
 tags:
   - AI-Agent
   - LLM
@@ -8,274 +8,207 @@ tags:
 pubDate: 2026-09-08
 ---
 
-> 研究对象：`NousResearch/hermes-agent`（研读 `@c8aa560` / v0.21.1）+ [agentskills.io](https://agentskills.io) 开放规格  
-> 伴生对照：SkillClaw、awesome-hermes-agent；产品对照：Claude Code / Cursor 的 skills 路径  
-> 性质：**学习向**架构研读，不含新产品代码。
+> **TL;DR**
+> Hermes Agent 的核心只有一个对话循环，命令行、终端界面、聊天机器人网关、定时任务都共用它；新能力尽量做成技能、插件或 MCP，挂在边上，不改核心。Agent Skills 是一个很简单的开放规范：一个文件夹加一个 `SKILL.md`，启动时只加载名字和描述，用到时才读全文。Hermes 在这之上加了一层“Agent 自己写技能、后台自动整理”，很有意思，但要配审批，而且它的终端隔离和审批都不是真正的安全边界。
 
----
+## 为什么要读这个
 
-## 1. 一句话总览
+我在自己的环境里跑 Hermes Agent，把它接进了元宝群当机器人。接入时踩过一个坑：机器人能被 @ 到，就是不回话。最后查下来是群访问策略和多 profile 下的密钥作用域问题。
 
-Hermes 的腰很窄：**一个共享的 `AIAgent` 对话环**，被 CLI / TUI / Gateway / Cron / Desktop 共用；能力尽量长在边上（skills、plugins、MCP、终端后端）。
+修好之后我想搞明白两件事：
 
-Agent Skills 则是跨产品的 **「文件夹 + SKILL.md」渐进披露格式**：启动只塞 name/description，真要用再读全文和脚本。Hermes **兼容这套格式**，并额外把它当成 **过程记忆**（会话里可自写、curator 治理）；Claude Code / Cursor 更偏 **人写、可移植、按目录发现**。
+1. 一条群消息到底经过了哪些环节，才走到模型那里？
+2. Hermes 说自己支持 “Agent Skills”，还能自己写技能。这个“技能”到底是什么，和 Claude Code、Cursor 里的 skills 是一回事吗？
 
-和[中转站架构笔记](../ai-relay-architecture/)对照：
+所以我把 Hermes 的源码（`NousResearch/hermes-agent`，v0.21.1，commit `c8aa560`）和 [agentskills.io](https://agentskills.io) 的规范仓库读了一遍。下面是笔记。
 
-| 中转站问题 | Hermes / Skills 问题 |
-|------------|----------------------|
-| 上游凭据存哪、谁持有出站 | 工具/技能谁能跑、网关谁能进 |
-| Adaptor 改协议 | Skill 改「怎么做事」而不改核心环 |
-| 多租户 Key | Profile / multiplex 隔离 + 通道 allowlist |
+先定义几个词：
 
----
+- **Agent**：能多轮调用工具（读文件、跑命令、搜索）来完成任务的大模型程序。
+- **对话循环（agent loop）**：“调用模型 → 模型要用工具就执行 → 把结果塞回去 → 再调用模型”，直到模型给出最终回答。
+- **Skill（技能）**：一份写给 Agent 看的操作说明书，告诉它某类任务怎么做，可以附带脚本。
 
-## 2. Hermes 模块地图
+## 一、Hermes 的形状：窄腰
 
-| 区域 | 职责 | 关键路径 |
-|------|------|----------|
-| **CLI** | REPL、斜杠命令、`HermesCLI` mixins | `cli.py`、`hermes_cli/` |
-| **Agent 环** | turn lease → LLM → tools → 终态回复 | `run_agent.py`、`agent/conversation_loop.py`、`agent/turn_*.py` |
-| **Gateway** | 多平台消息进程 | `gateway/run.py`、`gateway/platforms/`、`plugins/platforms/` |
-| **Tools** | 注册表、toolset、后端 | `tools/`、`model_tools.py`、`toolsets.py` |
-| **Skills** | 内置 / optional / Hub；渐进披露 | `skills/`、`tools/skills_tool.py`、`agent/skill_*.py`、`agent/curator.py` |
-| **Memory** | 内置 + 可插拔 `MemoryProvider` | `agent/memory_manager.py`、`plugins/memory/` |
-| **Cron** | 调度与投递（不镜像进聊天） | `cron/` |
-| **Profiles** | 独立 `HERMES_HOME` 岛 | `hermes_cli/profiles.py`、`gateway/profile_routing.py` |
-| **TUI / Desktop** | Ink TUI ↔ JSON-RPC；Electron | `ui-tui/`、`tui_gateway/`、`apps/desktop/` |
-| **State** | SQLite 会话 / FTS | `hermes_state*.py` |
+Hermes 仓库根目录的 `AGENTS.md` 写了两条设计原则，我觉得是理解整个项目的钥匙：
 
-**设计不变量（仓库 `AGENTS.md`）：**  
-1）按会话的 prompt cache 神圣不可乱拆；  
-2）核心腰窄，能力放边缘。
+- **按会话的 prompt cache 不能乱动。** 长对话会复用缓存；中途重建 system prompt 会让缓存失效，成本成倍上升。所以技能、工具、记忆这类会改 system prompt 的东西，都要“对缓存友好”。
+- **核心是窄腰，能力放在边上。** 新渠道、新模型、新能力，优先做成边缘扩展，不往核心循环里塞。
 
-### 2.1 技术栈
+画出来是这样：
 
-- Python `>=3.11,<3.14`，`uv` 锁版本  
-- LLM：`openai` 核心 + Anthropic/Bedrock/Gemini/Codex 等适配  
-- CLI：`prompt_toolkit` + `rich`；配置 YAML + 密钥 `.env`  
-- TUI：React 19 + Ink（`ui-tui/`）  
-- 扩展：plugins、MCP、ACP  
+<div class="dg heti-skip" role="figure" aria-label="Hermes 的窄腰架构">
+<span class="dg-title">图 1 · Hermes 的窄腰：很多入口，一个核心，能力在边上</span>
+<div class="dg-steps">
+<div class="dg-fan"><span class="dg-box">命令行 CLI<small>cli.py</small></span><span class="dg-box">终端界面 TUI<small>ui-tui/</small></span><span class="dg-box">消息网关<small>gateway/</small></span><span class="dg-box">定时任务<small>cron/</small></span><span class="dg-box">桌面端<small>apps/desktop/</small></span></div>
+<div class="dg-down"><span class="dg-arrow is-down">都调用同一个</span></div>
+<span class="dg-box is-accent">AIAgent 对话循环<small>agent/conversation_loop.py · run_conversation</small></span>
+<div class="dg-down"><span class="dg-arrow is-down">按需调用</span></div>
+<div class="dg-fan"><span class="dg-box">Skills 技能<small>skills/、tools/skills_tool.py</small></span><span class="dg-box">工具注册表<small>tools/registry.py</small></span><span class="dg-box">插件 / MCP<small>plugins/</small></span><span class="dg-box">记忆<small>agent/memory_manager.py</small></span><span class="dg-box">终端后端<small>7 种</small></span></div>
+</div>
+</div>
 
----
+这个形状我很认同。写后端的人都见过反面：每接一个新渠道就在核心里加一堆 if，最后谁都不敢动。Hermes 把“入口多”和“能力多”都推到边上，中间只留一个循环。
 
-## 3. 路径 A：CLI/TUI → 模型 → 工具 → 回复
+技术栈：Python 3.11–3.13，`uv` 管依赖；终端界面是 React + Ink；配置用 YAML，密钥放 `.env`。
 
-<div class="dg heti-skip" role="figure" aria-label="图 · 路径 A：CLI/TUI → 模型 → 工具 → 回复">
-<span class="dg-title">图 · 路径 A：CLI/TUI → 模型 → 工具 → 回复</span>
-<div class="dg-actors"><span class="dg-box ">用户</span><span class="dg-box ">HermesCLI</span><span class="dg-box ">AIAgent</span><span class="dg-box ">conversation_loop</span><span class="dg-box ">handle_function_call</span><span class="dg-box ">LLM</span></div>
+## 二、在命令行里问一个问题，发生了什么
+
+<div class="dg heti-skip" role="figure" aria-label="Hermes 命令行请求路径">
+<span class="dg-title">图 2 · 命令行：一轮对话的完整路径</span>
+<div class="dg-actors"><span class="dg-box">用户</span><span class="dg-box">HermesCLI</span><span class="dg-box">AIAgent</span><span class="dg-box">对话循环</span><span class="dg-box">工具执行</span><span class="dg-box">模型</span></div>
 <div class="dg-seq">
-<div class="dg-msg "><span class="dg-who">用户 → HermesCLI</span><span class="dg-text">输入 / 斜杠命令</span></div>
-<div class="dg-msg "><span class="dg-who">HermesCLI → AIAgent</span><span class="dg-text">run_conversation(...)</span></div>
-<div class="dg-msg "><span class="dg-who">AIAgent → loop</span><span class="dg-text">turn_facade（lease）</span></div>
-<span class="dg-note">↻ 循环（预算内）：</span>
-<div class="dg-msg is-loop"><span class="dg-who">loop → LLM</span><span class="dg-text">turn_api_*</span></div>
-<span class="dg-note">　如果有 tool_calls：</span>
-<div class="dg-msg is-loop"><span class="dg-who">loop → function_call</span><span class="dg-text">model_tools / inline executors</span></div>
-<div class="dg-msg is-back is-loop"><span class="dg-who">function_call → loop</span><span class="dg-text">tool results 追加</span></div>
-<span class="dg-note">　如果无工具：</span>
-<div class="dg-msg is-back"><span class="dg-who">loop → HermesCLI</span><span class="dg-text">final_response（可流式）</span></div>
+<div class="dg-msg"><span class="dg-who">用户 → CLI</span><span class="dg-text">输入一句话或斜杠命令</span></div>
+<div class="dg-msg"><span class="dg-who">CLI → AIAgent</span><span class="dg-text"><code>run_conversation(...)</code></span></div>
+<div class="dg-msg"><span class="dg-who">AIAgent → 循环</span><span class="dg-text">先拿到本轮的执行“租约”（turn lease）</span></div>
+<span class="dg-note">↻ 在预算内反复：</span>
+<div class="dg-msg is-loop"><span class="dg-who">循环 → 模型</span><span class="dg-text">发送对话历史</span></div>
+<div class="dg-msg is-loop"><span class="dg-who">循环 → 工具</span><span class="dg-text">模型要用工具：<code>handle_function_call</code> 执行</span></div>
+<div class="dg-msg is-back is-loop"><span class="dg-who">工具 → 循环</span><span class="dg-text">工具结果追加进对话，再问模型</span></div>
+<div class="dg-msg is-back"><span class="dg-who">循环 → CLI</span><span class="dg-text">模型不再调工具，返回最终回答（可流式）</span></div>
 </div>
 </div>
 
-| 步骤 | 文件 / 符号 |
-|------|-------------|
-| 入口 | `hermes` → `hermes_cli.main:main` → `cli.py::HermesCLI` |
-| 一轮聊天 | `hermes_cli/cli_chat_turn_mixin.py` → `agent.run_conversation` |
-| 环 | `agent/turn_facade.py` → `agent/conversation_loop.py::run_conversation` |
-| 工具 | `model_tools.py::handle_function_call`、`tools/registry.py` |
-| TUI 同核 | `ui-tui` → JSON-RPC → `tui_gateway` → 同一 `AIAgent` |
+终端界面（TUI）走的是同一条路：前端通过 JSON-RPC 连到后端，后端还是同一个 `AIAgent`。消息网关和定时任务也一样。这就是“窄腰”的实际含义：**不管从哪进来，最后都是这一个循环。**
 
----
+## 三、一条群消息怎么走到模型
 
-## 4. 路径 B：消息 Gateway 入站 → 出站
+这是我最关心的部分。通用的消息平台（比如 Telegram）是一个插件，继承 `BasePlatformAdapter`，收到消息后交给网关统一处理：前置钩子、鉴权、配对、媒体处理，然后进对话循环。
 
-### 4.1 通用（Telegram 插件型）
+元宝（Yuanbao）是内置平台里中间件最完整的一个（`gateway/platforms/yuanbao.py`）。一条消息要依次经过这些中间件：
 
-1. `plugins/platforms/<name>/adapter.py` 继承 `BasePlatformAdapter`  
-2. SDK 回调 → `handle_message(MessageEvent)`（`gateway/platforms/base.py`）  
-3. `GatewayRunner` → `_handle_message`（`run_inbound.py`）：pre hooks、authz、pairing、媒体  
-4. `_handle_message_with_agent`（`run_turn.py`）→ `TurnRunner` → `agent.run_conversation`  
-5. 流式消费 → `adapter.send()` / `gateway/delivery.py`  
+<div class="dg heti-skip" role="figure" aria-label="元宝消息中间件管线">
+<span class="dg-title">图 3 · 元宝入站中间件管线（标红的两步决定了“机器人为什么不回话”）</span>
+<div class="dg-chain"><span class="dg-box">解码</span><span class="dg-arrow"></span><span class="dg-box">提取字段</span><span class="dg-arrow"></span><span class="dg-box">撤回检查</span><span class="dg-arrow"></span><span class="dg-box">去重</span><span class="dg-arrow"></span><span class="dg-box">跳过自己</span><span class="dg-arrow"></span><span class="dg-box">会话路由</span><span class="dg-arrow"></span><span class="dg-box is-hit">访问控制 AccessGuard</span><span class="dg-arrow"></span><span class="dg-box">提取内容</span><span class="dg-arrow"></span><span class="dg-box">主人命令</span><span class="dg-arrow"></span><span class="dg-box">构建来源</span><span class="dg-arrow"></span><span class="dg-box is-hit">群 @ 检查 GroupAtGuard</span><span class="dg-arrow"></span><span class="dg-box">发言人标注</span><span class="dg-arrow"></span><span class="dg-box">媒体解析</span><span class="dg-arrow"></span><span class="dg-box is-accent">分发给 Agent</span></div>
+</div>
 
-### 4.2 Yuanbao（内置最完整的中间件管线）
+两个关键环节：
 
-文件：`gateway/platforms/yuanbao.py`  
+- **访问控制**：私聊和群聊各有策略，可以是白名单、配对、开放或禁用。设成“开放”还需要额外的环境变量（如 `YUANBAO_ALLOW_ALL_USERS`）。不满足就**静默丢弃**，不会报错。
+- **群 @ 检查**：群里没有 @ 机器人的消息，只会被“观察”记进上下文，不会触发回复。日志里会看到 `Group message observed (no @bot)`。
 
-默认管线（节选顺序）：
+这套中间件管线我很喜欢。每一步只做一件事，每一步都能打日志。排查“为什么不回话”时，看日志停在哪一步就知道了。
 
-```text
-Decode → ExtractFields → RecallGuard → Dedup → SkipSelf
-→ ChatRouting → AccessGuard → ExtractContent → …
-→ OwnerCommand → BuildSource → GroupAtGuard → AutoSetHome
-→ GroupAttribution → … → Media → Dispatch
-```
+## 四、多个机器人跑在一个进程里：Profile 和密钥作用域
 
-| 中间件 | 作用（排障对照） |
-|--------|------------------------|
-| **AccessGuard + AccessPolicy** | DM/群：`allowlist\|pairing\|open\|disabled`；`open` 需 `GATEWAY_ALLOW_ALL_USERS` / `YUANBAO_ALLOW_ALL_USERS`；multiplex 下副 profile 的 env 必须进 **secret scope**，否则静默拒群 |
-| **GroupAtGuard** | 群消息未 `@bot`（且非 owner 命令）→ 只 **observe** 进 transcript，**不 dispatch**；日志常见 `Group message observed (no @bot)` |
-| **GroupAttribution** | `@bot` 通过后打 `[nickname\|user_id]` + channel_prompt |
-| **Dispatch** | 入队 → `Group message enqueued` → `handle_message` |
+Hermes 有 **profile** 的概念：每个 profile 是一个独立目录（默认在 `~/.hermes/profiles/<name>/`），有自己的配置、`.env`、技能和会话数据库，互不继承。
 
-Transport：WebSocket `ConnectionManager`；`enforces_own_access_policy = True`。  
-技能伴生：`optional-skills/yuanbao/SKILL.md`（`yb_query_group_*` 等）。
+网关可以开 `multiplex_profiles`，**一个进程同时服务多个 profile**——比如一个群里挂好几个不同人设的机器人。
 
----
+这里有个坑。多路复用时，进程的环境变量通常是默认 profile 的。副 profile 的白名单、“允许所有人”这类配置，要通过 `agent/secret_scope.py` 按 profile 读取。这个模块的设计是 **fail-closed**：读不到就失败，不会退回去借用默认 profile 的配置。
 
-## 5. Profiles 与 multiplex
+我觉得这个选择是对的。宁可不回话，也不能把 A 机器人的权限借给 B。代价是配置写错时表现为“静默不工作”，排查要靠日志。
 
-| 概念 | 行为 |
+## 五、终端隔离：别把它当成安全边界
+
+Hermes 支持 7 种终端后端（`tools/terminal_tool_backends.py`）：`local`、`docker`、`singularity`、`modal`、`daytona`、`vercel_sandbox`、`ssh`。默认是 `local`，也就是直接在本机执行，**没有任何操作系统级边界**。
+
+仓库的 `SECURITY.md` 说得很坦白：终端后端只约束 shell 和文件类工具；进程内的代码执行、MCP 子进程、插件、技能里的 import 都不受它约束。审批门控也只是启发式的，不是安全边界。真要隔离，得把整个 Hermes 进程放进容器。
+
+如果你把 Hermes 接到了群聊这种别人也能发消息的地方，这一条值得认真对待。
+
+## 六、Agent Skills：一个简单到有点意外的规范
+
+[Agent Skills](https://agentskills.io) 是一个开放规范，Claude Code、Cursor、Hermes 都兼容。一个技能就是：
+
+- 一个文件夹；
+- 里面一个必需的 `SKILL.md`：YAML 头部 + Markdown 正文；
+- 可选的 `scripts/`、`references/`、`assets/`。
+
+头部只有两个必填字段：
+
+| 字段 | 要求 |
 |------|------|
-| `HERMES_HOME` | 默认 `~/.hermes`；命名 profile → `~/.hermes/profiles/<name>/` |
-| 隔离 | 每个 profile 自有 `config.yaml`、`.env`、`skills/`、`state.db`（岛，不在线继承） |
-| `profile_routes` | 按 platform / guild / chat / thread 匹配 profile |
-| `gateway.multiplex_profiles` | **一个进程**服务多 profile |
-| **密钥作用域** | multiplex 下 `os.environ` 往往是 **default**；副 profile 的 allowlist / `ALLOW_ALL` 走 `agent/secret_scope.py`；**scope miss 失败关闭**，不借 default 的名单 |
+| `name` | 最多 64 个字符，小写字母加连字符，最好和文件夹同名 |
+| `description` | 最多 1024 个字符，写清楚**做什么、什么时候用** |
 
-典型坑：在副 profile 里配置了 `YUANBAO_ALLOW_ALL_USERS` 仍不生效——multiplex 下副 profile 的授权读错了层。
+可选字段有 `license`、`compatibility`、`metadata`，以及实验性的 `allowed-tools`（预先批准可用的工具）。
 
----
+它真正聪明的地方是**渐进披露（progressive disclosure）**：
 
-## 6. 终端后端与隔离（七种）
+<div class="dg heti-skip" role="figure" aria-label="技能的渐进披露">
+<span class="dg-title">图 4 · 渐进披露：只在需要时才把内容放进上下文</span>
+<div class="dg-row"><span class="dg-box">① 目录<small>启动时只加载 name + description，每个技能几十个 token</small></span><span class="dg-arrow"></span><span class="dg-box is-accent">② 激活<small>任务匹配上了，才读完整的 SKILL.md</small></span><span class="dg-arrow"></span><span class="dg-box">③ 资源<small>需要时再读脚本和参考文档</small></span></div>
+</div>
 
-`tools/terminal_tool_backends.py`：
+所以你可以装几十个技能，平时几乎不占上下文。这和前面说的“别乱动 prompt cache”也是一致的。
 
-1. `local`（默认，**无 OS 边界**）  
-2. `docker`  
-3. `singularity`  
-4. `modal`  
-5. `daytona`  
-6. `vercel_sandbox`  
-7. `ssh`  
+技能放在哪，规范没有强制，各产品自己约定。跨工具共用的话，项目级放 `.agents/skills/`，用户级放 `~/.agents/skills/`。同名时项目级优先；不信任的仓库，先审核再加载。
 
-**隔离模型（`SECURITY.md`）：** 终端后端只约束 shell/文件类工具；**不**约束进程内 code-exec、MCP 子进程、插件、skill import。真正对抗边界要靠整进程 Docker/OpenShell。审批门控是启发式，不是安全边界。
+三家的差异，放在一张表里看：
 
----
+<div class="dg heti-skip" role="figure" aria-label="三个产品的技能实现对比">
+<span class="dg-title">表 · Claude Code、Cursor、Hermes 的技能实现（窄屏可左右滑动）</span>
+<div class="dg-cmp-wrap">
+<table class="dg-cmp">
+<thead><tr><th></th><th>Claude Code</th><th>Cursor</th><th>Hermes</th></tr></thead>
+<tbody>
+<tr><th>技能目录</th><td><code>~/.claude/skills/</code>、<code>.claude/skills/</code></td><td><code>.agents/</code> 或 <code>.cursor/skills/</code>，也会扫描 <code>.claude</code>、<code>.codex</code></td><td><code>~/.hermes/skills/</code>；项目目录需要先信任；还有技能 Hub</td></tr>
+<tr><th>扩展字段</th><td><code>context: fork</code>、<code>allowed-tools</code>、动态命令等</td><td><code>paths</code> 等</td><td><code>platforms</code>、<code>metadata.hermes.*</code></td></tr>
+<tr><th>特点</th><td>人写为主，产品扩展多</td><td>monorepo 可按子目录生效</td><td class="is-ok">Agent 能自己写技能，后台自动整理</td></tr>
+<tr><th>调用方式</th><td>Skill 工具或 <code>/技能名</code></td><td>自动匹配或 <code>/</code></td><td><code>skills_list</code> → <code>skill_view</code>，或斜杠命令</td></tr>
+</tbody>
+</table>
+</div>
+</div>
 
-## 7. Agent Skills 开放规格
+规范里的六个字段可以跨产品用。各家的私有字段，对方可能忽略，也可能报错。想写一份到处能用的技能，就只用规范字段，私有的放进 `metadata` 自己的命名空间。
 
-### 7.1 是什么
+## 七、Hermes 的特别之处：Agent 自己写技能
 
-官网：https://agentskills.io · 规格仓：https://github.com/agentskills/agentskills  
+这是 Hermes 和另外两家最不一样的地方。
 
-一个技能 = 目录 + 必需的 `SKILL.md`（YAML frontmatter + Markdown 正文）+ 可选 `scripts/`、`references/`、`assets/`。
+- **加载**：技能通过 `skills_list` 和 `skill_view` 两个工具渐进加载。用斜杠命令调用技能时，技能内容作为一条**用户消息**注入（`agent/skill_commands.py`），不改 system prompt——还是为了保住缓存。
+- **自写**：完成一个复杂任务后，Agent 可以用 `skill_manage` 把这次的做法存成新技能。配置里有 `skills.write_approval`，打开后写技能前要你批准。
+- **Curator（整理器）**：`agent/curator.py` 会在 Agent 空闲时自动运行，根据使用记录把技能在“活跃 / 过期 / 归档”之间移动，还可能合并、修补技能。它有几条硬规则：只碰它负责管理的技能（内置技能默认也在其中，Hub 装的从不清理）；**从不删除，只归档**，可以恢复；被固定（pin）的技能完全不受影响。
+- **护栏**：`tools/skills_guard.py` 做启发式检查，Hub 安装有隔离区。
 
-| Frontmatter | 必需 | 要点 |
-|-------------|------|------|
-| `name` | 是 | ≤64；小写+连字符；宜与目录名一致 |
-| `description` | 是 | ≤1024；**做什么 + 何时用**（触发词） |
-| `license` / `compatibility` / `metadata` | 否 | 元数据 |
-| `allowed-tools` | 否 | 实验性预批准工具 |
+我对“Agent 自己写技能”的看法是两面的：
 
-### 7.2 渐进披露（调用契约）
+<div class="dg heti-skip" role="figure" aria-label="人写技能与 Agent 自写技能对比">
+<span class="dg-title">图 5 · 人写技能 vs Agent 自写技能</span>
+<div class="dg-cards">
+<div class="dg-card is-ok"><span class="dg-tag">人写、可移植</span><span>能审计，能进 git，Cursor / Claude / Hermes 通用</span><span>缺点：更新慢，要人维护</span><span><b>适合</b>：核心操作流程、要发布给别人的技能</span></div>
+<div class="dg-card is-warn"><span class="dg-tag">Agent 自写</span><span>从真实成功的做法里长出来，贴合个人习惯</span><span>缺点：容易重复、半成品多；技能里有指令也有脚本，等于供应链风险</span><span><b>适合</b>：个人的“过程记忆”；务必打开 write_approval</span></div>
+</div>
+</div>
 
-1. **Catalog**：启动只加载 name+description（约几十 token/技能）  
-2. **Activation**：匹配后读完整 `SKILL.md`  
-3. **Resources**：脚本/参考按需再读  
+还有一个伴生项目 [SkillClaw](https://github.com/AMAP-ML/SkillClaw)：任务中 Hermes 写技能，任务后由一个“进化服务”去重、提质。格式还是 `SKILL.md`。它和 Hermes 自带的 curator 同时开时谁负责什么，我还没实际验证。
 
-用户可 `/skill-name`；实现可用 file-read 或专用工具。
+装任何技能之前，我会过一遍这个清单：来源和 hash → 通读 `SKILL.md` → 检查 `scripts/` → 看它要什么权限、`allowed-tools` 写了什么 → 项目是否已信任 → 先在沙箱里跑。这篇文章讲得很好：[Install agent skills without getting owned](https://www.nyk.dev/blog/install-agent-skills-without-getting-owned)。
 
-### 7.3 发现路径（规格不强制，产品约定）
+## 八、风险汇总
 
-| Scope | 常见路径 |
-|-------|----------|
-| Project | `.〈client〉/skills/` 或跨工具 `.agents/skills/` |
-| User | `~/.〈client〉/skills/` 或 `~/.agents/skills/` |
+| 方面 | 风险 | 怎么控制 |
+|------|------|----------|
+| 凭据 | `.env` 里的机器人 token、模型 Key | `.env` 只放密钥；多路复用用密钥作用域；子进程清理环境变量 |
+| 插件 | 和 Agent 进程同等权限 | 安装前人工审 |
+| 网关 | 陌生人远程驱动你的 Agent | 每个平台配白名单；缺白名单时默认拒绝 |
+| 技能 | import 和脚本可以执行任意代码 | Skills Guard、隔离区、写入审批、curator 只归档不删 |
+| 终端 | `local` 后端没有系统边界 | 换 docker 等后端；真正的边界是整进程沙箱 |
+| 审批 | 启发式判断 | 别当安全边界用 |
 
-扫描：子目录存在精确 `SKILL.md`；同名时 project > user；未信任仓库建议门禁后再加载。
+## 我还不确定的
 
-### 7.4 三产品对照
+- curator 在默认发行版里的触发频率和阈值，取决于配置，我没逐项核对默认值。
+- 各消息平台插件的中间件和元宝那套是否同构。Telegram 那条路明显更“薄”。
+- 规范里实验性的 `allowed-tools`，各客户端支持程度不一。
 
-| | Claude Code | Cursor | Hermes |
-|--|-------------|--------|--------|
-| 路径 | `~/.claude/skills/`、`.claude/skills/` | `.agents|.cursor/skills/` + home；兼容扫描 `.claude|.codex` | `~/.hermes/skills/`；external/project（需 trust）；Hub |
-| 扩展字段 | `context:fork`、`allowed-tools`、动态 `!cmd` 等 | `paths`、Custom Mode 外观 | `platforms`、`metadata.hermes.*` |
-| 特色 | 人写 + 强产品扩展 | monorepo 子树 scope；Cloud 仅 sync `~/.cursor/skills/` | **过程记忆**：`skill_manage`、`/learn`、`write_approval`、curator |
-| API | Skill tool / `/name` | 自动 + `/` | `skills_list` → `skill_view` |
+## 谁该关心，下一步做什么
 
-**可移植边界：** 规格六字段可跨产品；产品私有 frontmatter 对方可能忽略或报错。跨工具共享优先 `.agents/skills/`。
+如果你在**自己跑 Agent**，尤其是接进了群聊：先确认终端后端不是裸的 `local`，再确认每个平台都有白名单。这两件事比任何提示词技巧都重要。
 
----
+如果你在**写技能**：只用规范里的字段，放 `.agents/skills/`，Cursor、Claude Code、Hermes 都能用。描述字段写清楚“什么时候用”，这决定了它能不能被正确触发。
 
-## 8. Hermes 里的 Skills：加载、自写、Curator
+如果你在**设计自己的 Agent 系统**：Hermes 的三个做法值得抄——一个核心循环、多入口挂载；网关用中间件管线表达策略，每层可观测；多租户密钥按作用域读，读不到就失败。
 
-| 主题 | 细节 |
-|------|------|
-| 落盘 | 运行时 `$HERMES_HOME/skills/`（从仓库 `skills/` 播种）；小众 `optional-skills/` 经 `hermes skills install`；Hub：`tools/skills_hub*.py` |
-| 格式 | agentskills 形 + Hermes 元数据 |
-| 加载 | 渐进：`skills_list` / `skill_view`（`tools/skills_tool.py`）；斜杠注入为 **user message**（`agent/skill_commands.py`），**不进 system prompt** |
-| 自写 | 复杂任务后 agent 可 `skill_manage`；可选 `skills.write_approval` |
-| Curator | `agent/curator.py`；`hermes curator …`；用量 `~/.hermes/skills/.usage.json`；仅 **agent 创建** 的技能可自动归档到 `.archive/`；不硬删；pinned 豁免 |
-| 护栏 | `tools/skills_guard.py` 启发式；Hub quarantine；项目技能扫描 |
+我自己的下一步，是把手上的运维操作流程整理成几个人写的 `.agents/skills/` 技能，让不同工具共用一份。
 
-### 8.1 SkillClaw（伴生，可选）
+<details class="dg-more">
+<summary>附：研读的代码版本与关键文件</summary>
 
-https://github.com/AMAP-ML/SkillClaw · 论文 arXiv:2604.08377  
+- Hermes Agent：`NousResearch/hermes-agent` v0.21.1 @ `c8aa560`（2026-09-08）。设计原则 `AGENTS.md`；对话循环 `agent/conversation_loop.py`；工具 `model_tools.py`、`tools/registry.py`；元宝网关 `gateway/platforms/yuanbao.py`；密钥作用域 `agent/secret_scope.py`；终端后端 `tools/terminal_tool_backends.py`；技能 `tools/skills_tool.py`、`agent/skill_commands.py`、`agent/curator.py`、`tools/skills_guard.py`；安全说明 `SECURITY.md`。
+- Agent Skills 规范：<https://agentskills.io> · <https://github.com/agentskills/agentskills>
+- SkillClaw：<https://github.com/AMAP-ML/SkillClaw>
 
-两环：任务中 Hermes 写技能 + 任务后 Evolve Server（去重/提质）；可 `skillclaw setup` 改 Hermes 走本地 proxy，库仍在 `~/.hermes/skills`。格式仍是 SKILL.md，亦可服务 Codex/Claude Code 等。
-
----
-
-## 9. 人写 vs 会话自写（怎么用才稳）
-
-| | 人写可移植 Skill | Hermes 自写（± SkillClaw） |
-|--|------------------|----------------------------|
-| 优点 | 可审计、可 git、跨 Cursor/Claude/Hermes | 从真实成功路径生长、贴合个人工作流 |
-| 风险 | 更新慢 | 半成品重复、供应链（指令+脚本）、权限面 |
-| 建议 | 核心 SOP / 发布用 | 过程记忆；开 `write_approval`；定期 curator；装 Hub 前通读脚本 |
-
-跑技能前清单：来源/hash → 通读 SKILL.md → 查 `scripts/` → 权限与 `allowed-tools` → 项目 trust → 沙箱试跑 → 自写审批 / 可回滚。参考：[Install agent skills without getting owned](https://www.nyk.dev/blog/install-agent-skills-without-getting-owned)。
-
----
-
-## 10. 信任面汇总（Hermes）
-
-| 面 | 风险 | 控制思路 |
-|----|------|----------|
-| 凭据 | `.env`、bot token、provider key | secrets-only `.env`；multiplex secret scope；子进程 scrub |
-| 插件 | 等同 agent 进程权限 | 安装前人工审 |
-| Gateway | 未授权远程调度 | 各平台 allowlist；yuanbao AccessPolicy；缺名单 fail-closed |
-| Skills | import/脚本任意代码 | Skills Guard、quarantine、审批、curator 边界 |
-| 终端 | local 无 OS 边界 | docker 等后端；整进程沙箱才是真边界 |
-| 审批门控 | 启发式 | 勿当安全边界 |
-
----
-
-## 11. 自建 / 自用可抄清单（不写码）
-
-1. **一个对话环，多入口挂载**（CLI/网关/定时共用核）  
-2. **网关用中间件管线**表达策略（鉴权 → 路由 → @门控 → dispatch），日志每层可观测  
-3. **Profile = 文件系统岛**；多租户密钥 **scope fail-closed**  
-4. **Skills = 规格六字段 + 渐进披露**；产品扩展字段单独命名空间（如 `metadata.hermes`）  
-5. **人写 SOP + agent 过程记忆** 分库或分目录，自写必须审批  
-6. **终端默认勿 local 裸奔**（若暴露到消息网关）  
-7. 能力增长优先 **skill/plugin**，少改核心 loop（保持 prompt cache 友好）  
-
----
-
-## 12. 与「中转站笔记」的衔接
-
-- 若你自建 **可信 API 网关**：抄 One/New Adaptor，别抄 Sub2API/A2 的客户端模拟主路径。  
-- 若你自建 **可信 Agent**：抄 Hermes 的「窄腰 + 边缘能力 + 中间件网关」；技能层跟 agentskills.io，便于和 Cursor/Claude 共用 SOP。  
-- Yuanbao 排障经验：群策略 / @门控 / multiplex 密钥作用域（见路径 B），可当网关设计的回归用例。
-
----
-
-## 13. 不确定点
-
-- Curator 在默认发行版的 cron/触发默认是否开启、阈值因配置而异  
-- 各 messaging 插件与 yuanbao 内置管线的同构程度不一（Telegram 更「薄」）  
-- SkillClaw 与原生 curator 同时开时的职责划分需实操验证  
-- agentskills 实验字段 `allowed-tools` 在各客户端支持度不一  
-
----
-
-## 14. 结论
-
-Hermes = **共享 agent 环** + **边缘 skills/plugins/MCP** + **（可选）厚网关中间件**。  
-Agent Skills = **跨产品的技能文件合约**；Hermes 在其上叠加 **自写过程记忆与 curator**。  
-
-拆完这两块，就同时摸到了「消息怎么进 agent」和「能力怎么不写死在核心里」。下一步若要落地，可以：  
-（a）把运维 SOP 收成 `.agents/skills/` 人写技能；或  
-（b）画一页「自用窄腰 agent」架构再写最小环。
+</details>
