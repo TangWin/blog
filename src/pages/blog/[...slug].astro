@@ -40,6 +40,8 @@ const lastModifiedDate = dayjs(
 const lastModified = lastModifiedDate.format('DD/MM/YYYY');
 const pubDate = dayjs(post.data.pubDate);
 const formattedPubDate = pubDate.format('DD/MM/YYYY');
+// 构建时由 scripts/export-md.mjs 生成，见 dist/md/
+const markdownUrl = `${import.meta.env.BASE_URL.replace(/\/?$/, '/')}md/${post.id}.md`;
 ---
 
 <PageLayout 
@@ -97,6 +99,15 @@ const formattedPubDate = pubDate.format('DD/MM/YYYY');
             </>
           )
         }
+        <span class="text-slate6">·</span>
+        <a
+          href={markdownUrl}
+          class="text-slate9 transition-colors hover:text-slate12"
+          title="纯 Markdown 版本，图表为图片、链接为绝对地址，可直接粘贴到掘金、知乎等编辑器"
+          data-pagefind-ignore
+        >
+          Markdown 原文
+        </a>
       </div>
     </div>
     <ImageLightbox client:only="react">

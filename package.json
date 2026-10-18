@@ -14,11 +14,12 @@
     "prepare": "husky",
     "dev": "astro dev",
     "start": "astro dev",
-    "build": "npm run tsc && astro check && astro build && npx pagefind --site dist",
+    "build": "npm run tsc && astro check && astro build && npx pagefind --site dist && node scripts/export-md.mjs",
     "preview": "astro preview",
     "tsc": "tsc --noEmit",
     "lint": "npm run tsc && astro check",
-    "format": "prettier --write \"src/**/*.{js,ts,jsx,tsx,astro}\""
+    "format": "prettier --write \"src/**/*.{js,ts,jsx,tsx,astro}\"",
+    "export:md": "astro build && node scripts/export-md.mjs --render"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.9",
@@ -66,13 +67,26 @@
     "@pagefind/default-ui": "^1.5.2",
     "eslint": "^10.4.1",
     "globals": "^15.11.0",
+    "hast-util-from-html": "^2.0.3",
+    "hast-util-raw": "^9.1.0",
+    "hast-util-select": "^6.0.4",
+    "hast-util-to-mdast": "^10.1.2",
+    "hast-util-to-string": "^3.0.1",
     "husky": "^9.1.7",
+    "mdast-util-to-hast": "^13.2.1",
     "postcss-import": "^16.1.0",
     "prettier": "^3.8.3",
     "prettier-plugin-astro": "^0.14.1",
     "prettier-plugin-tailwindcss": "^0.6.11",
+    "puppeteer-core": "^25.14.0",
+    "remark-frontmatter": "^5.0.0",
+    "remark-gfm": "^4.0.1",
+    "remark-parse": "^11.0.0",
+    "remark-stringify": "^11.0.0",
     "sanitize-html": "^2.14.0",
-    "vite": "^7.3.7"
+    "unified": "^11.0.5",
+    "vite": "^7.3.7",
+    "yaml": "^2.9.1"
   },
   "engines": {
     "node": ">=22.12.0"
